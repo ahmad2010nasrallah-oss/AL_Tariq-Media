@@ -52,7 +52,9 @@ function workCard(p){
 }
 function renderProjects(items){
   const grid=$('#portfolioProjectsGrid'); if(!grid)return;
-  const list=(Array.isArray(items)?items:[]).filter(p=>String(p.status||'Published').toLowerCase()==='published').sort((a,b)=>new Date(b.updated||0)-new Date(a.updated||0));
+  const list=(Array.isArray(items)?items:[])
+.filter(p=>p.published===true || String(p.status||'').toLowerCase()==='published')
+.sort((a,b)=>new Date(b.updated||0)-new Date(a.updated||0));
   if(!list.length){grid.innerHTML='<div class="admin-empty-card">لا توجد أعمال منشورة حالياً.</div>';return;}
   grid.replaceChildren(...list.map(workCard));
 }
@@ -60,7 +62,7 @@ function renderProjects(items){
 try{const local=JSON.parse(localStorage.getItem('altariq_media_services_v1')||'null');renderServices(local||defaultServices)}catch{renderServices(defaultServices)}
 
 onSnapshot(doc(db,'website_config','main'),snap=>{if(snap.exists())applySettings(snap.data())},e=>console.warn('Settings sync:',e));
-onSnapshot(collection(db,'admin_projects'),snap=>renderProjects(snap.docs.map(d=>({id:d.id,...d.data()}))),e=>console.warn('Projects sync:',e));
+onSnapshot(collection(db,'projects'),snap=>renderProjects(snap.docs.map(d=>({id:d.id,...d.data()}))),e=>console.warn('Projects sync:',e));
 onSnapshot(collection(db,'website_services'),snap=>{const items=snap.docs.map(d=>({id:d.id,...d.data()}));renderServices(items.length?items:defaultServices)},e=>console.warn('Services sync:',e));
 window.addEventListener('storage',e=>{if(e.key==='altariq_media_website_settings_v1'&&e.newValue){try{applySettings(JSON.parse(e.newValue))}catch{}} if(e.key==='altariq_media_services_v1'){try{renderServices(JSON.parse(e.newValue||'[]'))}catch{}}});
 
