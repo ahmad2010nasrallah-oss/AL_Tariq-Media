@@ -1,15 +1,402 @@
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
-import { getFirestore, collection, doc, getDocs, setDoc, writeBatch } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
-import { getStorage, ref, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-storage.js";
-const cfg={apiKey:"AIzaSyAyUMzv-Zw_XtNe4OKJPg2FrwyLSJh5i9A",authDomain:"al-tariq-media.firebaseapp.com",projectId:"al-tariq-media",storageBucket:"al-tariq-media.firebasestorage.app",messagingSenderId:"616239800441",appId:"1:616239800441:web:53edc96e1cc872702cb4a8"};
-const app=getApps().length?getApps()[0]:initializeApp(cfg), db=getFirestore(app), storage=getStorage(app);
-const SETTINGS_KEY='altariq_media_website_settings_v1', DB_NAME='altariq_media_admin_database_v2', STORE='projects';
-function readSettings(){try{return JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}')}catch{return {}}}
-function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open(DB_NAME,1);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);r.onupgradeneeded=e=>{const d=e.target.result;if(!d.objectStoreNames.contains(STORE))d.createObjectStore(STORE,{keyPath:'id'})}})}
-async function readProjects(){const d=await openDB();return new Promise((res,rej)=>{const t=d.transaction(STORE,'readonly'),r=t.objectStore(STORE).getAll();r.onsuccess=()=>res(r.result||[]);r.onerror=()=>rej(r.error)})}
-const urlCache=new Map();
-async function publicProject(p){let publicImage=p.image||'';if(/^data:image\//i.test(publicImage)){const sig=`${p.id}:${p.updated||''}:${publicImage.length}`;if(urlCache.has(sig)) publicImage=urlCache.get(sig); else {const r=ref(storage,`website/projects/${p.id}.jpg`);await uploadString(r,publicImage,'data_url');publicImage=await getDownloadURL(r);urlCache.set(sig,publicImage)}}return {...p,publicImage,image:publicImage}}
-let busy=false,last='';
-async function syncAll(){if(busy)return;busy=true;try{const settings=readSettings(),projects=await readProjects();const signature=JSON.stringify([settings.savedAt,projects.map(p=>[p.id,p.updated,p.status,p.name,p.driveLink,p.image?.length])]);if(signature===last)return;await setDoc(doc(db,'website_config','main'),{...settings,syncedAt:new Date().toISOString()},{merge:false});const existing=await getDocs(collection(db,'projects')),ids=new Set(projects.map(p=>String(p.id))),batch=writeBatch(db);existing.forEach(d=>{if(!ids.has(d.id))batch.delete(d.ref)});for(const p of projects){const id=String(p.id||crypto.randomUUID()),pub=await publicProject({...p,id});batch.set(doc(db,'',id),pub,{merge:false})}await batch.commit();last=signature;console.info('Public website synced from admin.')}catch(e){console.warn('Public sync failed. Check Firestore/Storage rules.',e)}finally{busy=false}}
-window.addEventListener('altariq:website-settings-updated',syncAll);window.addEventListener('storage',e=>{if(e.key===SETTINGS_KEY)syncAll()});setInterval(syncAll,1800);setTimeout(syncAll,700);
 
+import {
+  getFirestore,
+  collection,
+  doc,
+  getDocs,
+  setDoc,
+  writeBatch
+} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+
+
+const cfg = {
+  apiKey: "AIzaSyAyUMzv-Zw_XtNe4OKJPg2FrwyLSJh5i9A",
+  authDomain: "al-tariq-media.firebaseapp.com",
+  projectId: "al-tariq-media",
+  storageBucket: "al-tariq-media.firebasestorage.app",
+  messagingSenderId: "616239800441",
+  appId: "1:616239800441:web:53edc96e1cc872702cb4a8"
+};
+
+
+const app = getApps().length
+  ? getApps()[0]
+  : initializeApp(cfg);
+
+const db = getFirestore(app);
+
+
+const SETTINGS_KEY = "altariq_media_website_settings_v1";
+const DB_NAME = "altariq_media_admin_database_v2";
+const STORE = "projects";
+
+
+function readSettings() {
+  try {
+    return JSON.parse(
+      localStorage.getItem(SETTINGS_KEY) || "{}"
+    );
+  } catch {
+    return {};
+  }
+}
+
+
+function openDB() {
+
+  return new Promise((resolve, reject) => {
+
+    const request = indexedDB.open(DB_NAME, 1);
+
+    request.onsuccess = () => {
+      resolve(request.result);
+    };
+
+    request.onerror = () => {
+      reject(request.error);
+    };
+
+    request.onupgradeneeded = event => {
+
+      const database = event.target.result;
+
+      if (!database.objectStoreNames.contains(STORE)) {
+        database.createObjectStore(
+          STORE,
+          { keyPath: "id" }
+        );
+      }
+
+    };
+
+  });
+
+}
+
+
+async function readProjects() {
+
+  const database = await openDB();
+
+  return new Promise((resolve, reject) => {
+
+    const transaction =
+      database.transaction(STORE, "readonly");
+
+    const request =
+      transaction.objectStore(STORE).getAll();
+
+    request.onsuccess = () => {
+      resolve(request.result || []);
+    };
+
+    request.onerror = () => {
+      reject(request.error);
+    };
+
+  });
+
+}
+
+
+/*
+  لأن Firebase Storage غير متاح على الخطة الحالية،
+  الصور من نوع Base64 لن يتم رفعها إلى Firebase.
+
+  إذا كانت الصورة عبارة عن رابط HTTPS مباشر،
+  سنرسل الرابط للموقع.
+*/
+
+function preparePublicProject(project) {
+
+  let publicImage = "";
+
+  const image =
+    project.publicImage ||
+    project.imageUrl ||
+    project.image ||
+    "";
+
+  if (
+    typeof image === "string" &&
+    (
+      image.startsWith("https://") ||
+      image.startsWith("http://")
+    )
+  ) {
+    publicImage = image;
+  }
+
+
+  return {
+
+    ...project,
+
+    /*
+      الحقول الجديدة التي يستخدمها موقع الزوار
+    */
+
+    title:
+      project.title ||
+      project.name ||
+      "",
+
+    description:
+      project.description ||
+      "",
+
+    category:
+      project.category ||
+      "",
+
+    driveUrl:
+      project.driveUrl ||
+      project.driveLink ||
+      "",
+
+    published:
+      project.published === true ||
+      String(
+        project.status || ""
+      ).toLowerCase() === "published",
+
+    image: publicImage,
+
+    publicImage: publicImage,
+
+    updatedAt:
+      project.updatedAt ||
+      project.updated ||
+      new Date().toISOString()
+
+  };
+
+}
+
+
+let busy = false;
+let lastSignature = "";
+
+
+async function syncAll() {
+
+  if (busy) return;
+
+  busy = true;
+
+
+  try {
+
+    const settings = readSettings();
+
+    const projects =
+      await readProjects();
+
+
+    const signature =
+      JSON.stringify([
+        settings.savedAt,
+
+        projects.map(project => [
+          project.id,
+          project.updated,
+          project.status,
+          project.name,
+          project.title,
+          project.driveLink,
+          project.driveUrl
+        ])
+      ]);
+
+
+    if (signature === lastSignature) {
+      return;
+    }
+
+
+    /*
+      مزامنة إعدادات الموقع
+    */
+
+    await setDoc(
+      doc(
+        db,
+        "website_config",
+        "main"
+      ),
+
+      {
+        ...settings,
+        syncedAt:
+          new Date().toISOString()
+      },
+
+      {
+        merge: false
+      }
+    );
+
+
+    /*
+      المشاريع الموجودة حاليًا في Firestore
+    */
+
+    const existingSnapshot =
+      await getDocs(
+        collection(
+          db,
+          "projects"
+        )
+      );
+
+
+    const adminProjectIds =
+      new Set(
+        projects.map(project =>
+          String(project.id)
+        )
+      );
+
+
+    const batch =
+      writeBatch(db);
+
+
+    /*
+      حذف المشروع من الموقع
+      إذا حُذف من الأدمن
+    */
+
+    existingSnapshot.forEach(
+      documentSnapshot => {
+
+        if (
+          !adminProjectIds.has(
+            documentSnapshot.id
+          )
+        ) {
+
+          batch.delete(
+            documentSnapshot.ref
+          );
+
+        }
+
+      }
+    );
+
+
+    /*
+      إضافة / تحديث المشاريع
+    */
+
+    for (const project of projects) {
+
+      const id =
+        String(
+          project.id ||
+          crypto.randomUUID()
+        );
+
+
+      const publicProject =
+        preparePublicProject({
+          ...project,
+          id
+        });
+
+
+      batch.set(
+
+        doc(
+          db,
+          "projects",
+          id
+        ),
+
+        publicProject,
+
+        {
+          merge: false
+        }
+
+      );
+
+    }
+
+
+    await batch.commit();
+
+
+    lastSignature =
+      signature;
+
+
+    console.info(
+      "✅ Projects synced to Firestore successfully."
+    );
+
+
+  } catch (error) {
+
+    console.error(
+      "❌ Public sync failed:",
+      error
+    );
+
+  } finally {
+
+    busy = false;
+
+  }
+
+}
+
+
+/*
+  تحديث بعد تعديل إعدادات الموقع
+*/
+
+window.addEventListener(
+  "altariq:website-settings-updated",
+  syncAll
+);
+
+
+/*
+  تحديث عند تغيير LocalStorage
+*/
+
+window.addEventListener(
+  "storage",
+  event => {
+
+    if (
+      event.key === SETTINGS_KEY
+    ) {
+      syncAll();
+    }
+
+  }
+);
+
+
+/*
+  فحص التغييرات كل 1.8 ثانية
+*/
+
+setInterval(
+  syncAll,
+  1800
+);
+
+
+/*
+  تشغيل أول مزامنة بعد فتح الأدمن
+*/
+
+setTimeout(
+  syncAll,
+  700
+);
