@@ -8,7 +8,8 @@ import {
   collection,
   doc,
   onSnapshot,
-  setDoc
+  setDoc,
+  getDocs
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 
 
@@ -34,14 +35,25 @@ const db = getFirestore(app);
 
 
 /* =========================================================
-   CONSTANTS
+   CLOUDINARY CONFIG
 ========================================================= */
 
-const SERVICES_KEY =
-  "altariq_media_services_v1";
+const CLOUDINARY_CLOUD_NAME =
+  "ql544zkl";
+
+const CLOUDINARY_UPLOAD_PRESET =
+  "altariq_services_upload";
+
+
+/* =========================================================
+   SERVICES SETTINGS
+========================================================= */
 
 const SERVICES_COLLECTION =
   "services";
+
+const SERVICES_KEY =
+  "altariq_media_services_v1";
 
 const servicesPage =
   document.querySelector("#services");
@@ -64,52 +76,47 @@ const $$ = (selector, root = document) =>
   [...root.querySelectorAll(selector)];
 
 
-function safeText(value = "") {
+function cleanText(value = "") {
   return String(value || "").trim();
 }
 
 
 function escapeHtml(value = "") {
 
-  return String(value)
-    .replace(
-      /[&<>"']/g,
-      char => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#039;"
-      })[char]
-    );
+  return String(value).replace(
+    /[&<>"']/g,
+    character => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#039;"
+    })[character]
+  );
 
 }
 
 
-function getNextServiceId() {
+function showMessage(message) {
 
-  const numbers =
-    services
-      .map(service =>
-        Number(service.id)
-      )
-      .filter(number =>
-        Number.isFinite(number)
-      );
+  if (
+    typeof window.showToast ===
+    "function"
+  ) {
 
-  const nextNumber =
-    numbers.length
-      ? Math.max(...numbers) + 1
-      : 1;
+    window.showToast(message);
 
-  return String(nextNumber)
-    .padStart(2, "0");
+  } else {
+
+    console.info(message);
+
+  }
 
 }
 
 
 /* =========================================================
-   READ ORIGINAL SERVICES
+   READ ORIGINAL SERVICES FROM ADMIN
 ========================================================= */
 
 function readOriginalServices() {
@@ -121,12 +128,14 @@ function readOriginalServices() {
         String(index + 1)
           .padStart(2, "0");
 
+
       const name =
-        safeText(
+        cleanText(
           card.querySelector("h3")
             ?.textContent
         ) ||
         `Service ${index + 1}`;
+
 
       return {
 
@@ -136,7 +145,7 @@ function readOriginalServices() {
           index + 1,
 
         number:
-          safeText(
+          cleanText(
             card.querySelector(
               ".service-number"
             )?.textContent
@@ -144,7 +153,7 @@ function readOriginalServices() {
           id,
 
         icon:
-          safeText(
+          cleanText(
             card.querySelector(
               ".service-icon"
             )?.textContent
@@ -152,7 +161,7 @@ function readOriginalServices() {
           "✦",
 
         kicker:
-          safeText(
+          cleanText(
             card.querySelector(
               ".service-kicker"
             )?.textContent
@@ -165,7 +174,7 @@ function readOriginalServices() {
           name,
 
         description:
-          safeText(
+          cleanText(
             card.querySelector("p")
               ?.textContent
           ),
@@ -182,8 +191,7 @@ function readOriginalServices() {
           true,
 
         updated:
-          new Date()
-            .toISOString()
+          new Date().toISOString()
 
       };
 
@@ -201,93 +209,42 @@ const ORIGINAL_SERVICES =
    LOAD LOCAL SERVICES
 ========================================================= */
 
-let localServices = [];
+let services = [];
 
 try {
 
-  const parsed =
+  const local =
     JSON.parse(
       localStorage.getItem(
         SERVICES_KEY
       ) || "[]"
     );
 
-  if (Array.isArray(parsed)) {
-    localServices = parsed;
+
+  if (
+    Array.isArray(local) &&
+    local.length
+  ) {
+
+    services = local;
+
+  } else {
+
+    services =
+      [...ORIGINAL_SERVICES];
+
   }
 
 } catch {
-  localServices = [];
+
+  services =
+    [...ORIGINAL_SERVICES];
+
 }
 
 
 /* =========================================================
-   BUILD INITIAL SERVICE ARRAY
-========================================================= */
-
-let services =
-  ORIGINAL_SERVICES.map(
-    original => {
-
-      const local =
-        localServices.find(
-          item =>
-            String(item.id) ===
-            String(original.id)
-        );
-
-      if (!local) {
-        return {
-          ...original
-        };
-      }
-
-      return {
-        ...original,
-        ...local,
-        id:
-          original.id,
-        order:
-          original.order
-      };
-
-    }
-  );
-
-
-/*
-  Add extra services such as:
-  05 / 06 / 07...
-*/
-
-localServices.forEach(
-  service => {
-
-    const exists =
-      services.some(
-        item =>
-          String(item.id) ===
-          String(service.id)
-      );
-
-    if (!exists) {
-      services.push(service);
-    }
-
-  }
-);
-
-
-services.sort(
-  (a, b) =>
-    Number(a.order || 999)
-    -
-    Number(b.order || 999)
-);
-
-
-/* =========================================================
-   SAVE LOCAL
+   SAVE LOCAL COPY
 ========================================================= */
 
 function saveLocal() {
@@ -311,7 +268,137 @@ function saveLocal() {
 
 
 /* =========================================================
-   CSS
+   NEXT SERVICE ID
+========================================================= */
+
+function getNextServiceId() {
+
+  const numbers =
+    services
+      .map(service =>
+        Number(service.id)
+      )
+      .filter(number =>
+        Number.isFinite(number)
+      );
+
+
+  const next =
+    numbers.length
+      ? Math.max(...numbers) + 1
+      : 1;
+
+
+  return String(next)
+    .padStart(2, "0");
+
+}
+
+
+/* =========================================================
+   CLOUDINARY UPLOAD
+========================================================= */
+
+async function uploadImageToCloudinary(file) {
+
+  if (!file) {
+    return "";
+  }
+
+
+  if (
+    !file.type.startsWith("image/")
+  ) {
+
+    throw new Error(
+      "الملف المختار ليس صورة."
+    );
+
+  }
+
+
+  /*
+    10 MB maximum from admin.
+  */
+
+  if (
+    file.size >
+    10 * 1024 * 1024
+  ) {
+
+    throw new Error(
+      "حجم الصورة أكبر من 10MB."
+    );
+
+  }
+
+
+  const formData =
+    new FormData();
+
+
+  formData.append(
+    "file",
+    file
+  );
+
+
+  formData.append(
+    "upload_preset",
+    CLOUDINARY_UPLOAD_PRESET
+  );
+
+
+  const endpoint =
+    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
+
+
+  const response =
+    await fetch(
+      endpoint,
+      {
+        method: "POST",
+        body: formData
+      }
+    );
+
+
+  const result =
+    await response.json();
+
+
+  if (!response.ok) {
+
+    console.error(
+      "Cloudinary upload error:",
+      result
+    );
+
+
+    throw new Error(
+      result?.error?.message ||
+      "تعذر رفع الصورة إلى Cloudinary."
+    );
+
+  }
+
+
+  if (!result.secure_url) {
+
+    throw new Error(
+      "لم يرجع Cloudinary رابط الصورة."
+    );
+
+  }
+
+
+  return result.secure_url;
+
+}
+
+
+/* =========================================================
+   STYLES
 ========================================================= */
 
 const style =
@@ -321,9 +408,13 @@ const style =
 style.textContent = `
 
 .service-edit-chip{
+
   position:absolute;
-  z-index:8;
+
+  z-index:20;
+
   top:14px;
+
   right:14px;
 
   border:
@@ -349,21 +440,20 @@ style.textContent = `
   box-shadow:
     0 8px 25px rgba(0,0,0,.25);
 
-  transition:
-    .2s ease;
 }
 
 
 .service-edit-chip:hover{
+
   border-color:
     rgba(255,196,0,.65);
 
-  transform:
-    translateY(-1px);
 }
 
 
-/* ===== MODALS ===== */
+/* ======================================
+   MODAL
+====================================== */
 
 .service-modal-backdrop{
 
@@ -371,7 +461,7 @@ style.textContent = `
 
   inset:0;
 
-  z-index:20000;
+  z-index:30000;
 
   display:none;
 
@@ -380,34 +470,36 @@ style.textContent = `
   padding:20px;
 
   background:
-    rgba(0,5,13,.82);
+    rgba(0,5,13,.84);
 
   backdrop-filter:
-    blur(12px);
+    blur(14px);
 
 }
 
 
 .service-modal-backdrop.open{
+
   display:grid;
+
 }
 
 
 .service-modal{
 
   width:
-    min(760px,100%);
+    min(780px,100%);
 
   max-height:
     92vh;
 
   overflow:auto;
 
-  border-radius:
+  padding:
     26px;
 
-  padding:
-    24px;
+  border-radius:
+    28px;
 
   background:
     linear-gradient(
@@ -425,15 +517,53 @@ style.textContent = `
 }
 
 
-.service-modal h3{
+.service-modal-head{
 
-  margin:
-    0 0 20px;
+  display:flex;
+
+  align-items:center;
+
+  justify-content:
+    space-between;
+
+  gap:15px;
+
+  margin-bottom:
+    22px;
+
+}
+
+
+.service-modal-head h3{
+
+  margin:0;
 
   color:#fff;
 
-  font-size:
-    22px;
+  font-size:24px;
+
+}
+
+
+.service-modal-close{
+
+  width:42px;
+
+  height:42px;
+
+  border-radius:12px;
+
+  border:
+    1px solid rgba(255,255,255,.12);
+
+  background:
+    rgba(255,255,255,.06);
+
+  color:#fff;
+
+  cursor:pointer;
+
+  font-size:18px;
 
 }
 
@@ -445,15 +575,16 @@ style.textContent = `
   grid-template-columns:
     1fr 1fr;
 
-  gap:
-    14px;
+  gap:15px;
 
 }
 
 
 .service-modal-grid .full{
+
   grid-column:
     1 / -1;
+
 }
 
 
@@ -461,13 +592,11 @@ style.textContent = `
 
   display:grid;
 
-  gap:
-    7px;
+  gap:8px;
 
   color:#fff;
 
-  font-size:
-    12px;
+  font-size:12px;
 
 }
 
@@ -480,22 +609,21 @@ style.textContent = `
   box-sizing:
     border-box;
 
-  border:
-    1px solid rgba(255,255,255,.12);
-
-  background:
-    rgba(255,255,255,.06);
-
-  color:#fff;
+  padding:
+    12px 14px;
 
   border-radius:
     13px;
 
-  padding:
-    12px;
+  border:
+    1px solid rgba(255,255,255,.12);
 
-  outline:
-    none;
+  background:
+    rgba(255,255,255,.055);
+
+  color:#fff;
+
+  outline:none;
 
 }
 
@@ -504,7 +632,7 @@ style.textContent = `
 .service-modal textarea:focus{
 
   border-color:
-    rgba(255,196,0,.6);
+    rgba(255,196,0,.65);
 
 }
 
@@ -514,52 +642,43 @@ style.textContent = `
   min-height:
     110px;
 
-  resize:
-    vertical;
+  resize:vertical;
 
 }
 
 
-.service-modal-actions{
+/* ======================================
+   FILE UPLOAD
+====================================== */
 
-  display:flex;
-
-  justify-content:
-    flex-end;
-
-  gap:
-    10px;
-
-  margin-top:
-    20px;
-
-}
-
-
-.service-image-preview{
-
-  width:
-    100%;
-
-  max-height:
-    280px;
-
-  object-fit:
-    contain;
-
-  border-radius:
-    15px;
-
-  background:
-    #071326;
+.service-file-box{
 
   border:
-    1px solid rgba(255,255,255,.10);
+    1px dashed rgba(255,196,0,.4);
+
+  border-radius:
+    18px;
+
+  padding:
+    18px;
+
+  background:
+    rgba(255,196,0,.035);
 
 }
 
 
-.service-note{
+.service-file-box input[type="file"]{
+
+  cursor:pointer;
+
+}
+
+
+.service-file-note{
+
+  margin-top:
+    6px;
 
   color:
     #ffcf52;
@@ -573,170 +692,233 @@ style.textContent = `
 }
 
 
-/* ===== DYNAMIC SERVICES ===== */
+/* ======================================
+   IMAGE PREVIEW
+====================================== */
+
+.service-preview-wrap{
+
+  display:none;
+
+  position:relative;
+
+  min-height:
+    220px;
+
+  border-radius:
+    18px;
+
+  overflow:hidden;
+
+  background:
+    #071326;
+
+  border:
+    1px solid rgba(255,255,255,.1);
+
+}
+
+
+.service-preview-wrap.visible{
+
+  display:grid;
+
+  place-items:center;
+
+}
+
+
+.service-preview-wrap img{
+
+  width:100%;
+
+  max-height:340px;
+
+  object-fit:contain;
+
+  display:block;
+
+}
+
+
+.service-upload-status{
+
+  display:none;
+
+  align-items:center;
+
+  gap:8px;
+
+  padding:
+    11px 13px;
+
+  border-radius:
+    12px;
+
+  background:
+    rgba(255,196,0,.08);
+
+  color:
+    #ffd54d;
+
+  font-size:
+    12px;
+
+}
+
+
+.service-upload-status.show{
+
+  display:flex;
+
+}
+
+
+/* ======================================
+   CHECKBOX
+====================================== */
+
+.service-visible-row{
+
+  display:flex !important;
+
+  align-items:center;
+
+  gap:10px !important;
+
+}
+
+
+.service-visible-row input{
+
+  width:auto;
+
+}
+
+
+/* ======================================
+   ACTIONS
+====================================== */
+
+.service-modal-actions{
+
+  display:flex;
+
+  justify-content:flex-end;
+
+  gap:10px;
+
+  margin-top:22px;
+
+}
+
+
+.service-modal-actions button{
+
+  border-radius:
+    14px;
+
+  padding:
+    12px 18px;
+
+  cursor:pointer;
+
+  font-weight:800;
+
+}
+
+
+.service-modal-save{
+
+  border:0;
+
+  background:
+    linear-gradient(
+      135deg,
+      #ffc400,
+      #ffdc61
+    );
+
+  color:
+    #071326;
+
+}
+
+
+.service-modal-save:disabled{
+
+  opacity:.55;
+
+  cursor:not-allowed;
+
+}
+
+
+.service-modal-cancel{
+
+  border:
+    1px solid rgba(255,255,255,.12);
+
+  background:
+    rgba(255,255,255,.055);
+
+  color:#fff;
+
+}
+
+
+/* ======================================
+   DYNAMIC SERVICE
+====================================== */
 
 .dynamic-service-card{
 
   position:relative;
-
-  overflow:hidden;
-
-  border-radius:
-    26px;
-
-  border:
-    1px solid rgba(255,255,255,.10);
-
-  background:
-    #0c1d38;
-
-}
-
-
-.dynamic-service-image{
-
-  position:relative;
-
-  height:
-    360px;
-
-  overflow:hidden;
-
-  background:
-    #080d18;
-
-}
-
-
-.dynamic-service-image img{
-
-  width:100%;
-
-  height:100%;
-
-  display:block;
-
-  object-fit:
-    cover;
 
 }
 
 
 .dynamic-service-placeholder{
 
-  height:100%;
+  width:100%;
+
+  min-height:300px;
 
   display:grid;
 
   place-items:center;
 
-  font-size:
-    48px;
+  color:#ffc400;
 
-  color:
-    #ffcc22;
-
-}
-
-
-.dynamic-service-number{
-
-  position:absolute;
-
-  top:18px;
-
-  left:18px;
-
-  z-index:4;
-
-  min-width:
-    55px;
-
-  padding:
-    10px 12px;
-
-  border-radius:
-    14px;
-
-  text-align:center;
+  font-size:52px;
 
   background:
-    linear-gradient(
-      135deg,
-      #ffc400,
-      #ffde6c
-    );
-
-  color:
-    #061326;
-
-  font-weight:
-    900;
+    #09101c;
 
 }
 
 
-.dynamic-service-content{
+.hidden-service-admin{
 
-  padding:
-    24px;
-
-}
-
-
-.dynamic-service-kicker{
-
-  display:block;
-
-  margin-bottom:
-    12px;
-
-  color:
-    #ffc400;
-
-  font-size:
-    12px;
-
-  font-weight:
-    800;
+  opacity:.55;
 
 }
 
 
-.dynamic-service-content h3{
-
-  margin:
-    0 0 12px;
-
-  color:#fff;
-
-  font-size:
-    25px;
-
-}
-
-
-.dynamic-service-content p{
-
-  margin:0;
-
-  color:
-    #aebbd0;
-
-  line-height:
-    1.7;
-
-}
-
-
-@media(max-width:650px){
+@media(max-width:680px){
 
   .service-modal-grid{
-    grid-template-columns:1fr;
+
+    grid-template-columns:
+      1fr;
+
   }
 
+
   .service-modal-grid .full{
+
     grid-column:auto;
+
   }
 
 }
@@ -748,35 +930,46 @@ document.head.appendChild(style);
 
 
 /* =========================================================
-   ADD SERVICE MODAL
+   CREATE ONE MODAL FOR ADD + EDIT
 ========================================================= */
 
-const addBackdrop =
+const backdrop =
   document.createElement("div");
 
 
-addBackdrop.className =
+backdrop.className =
   "service-modal-backdrop";
 
-addBackdrop.id =
-  "addServiceBackdrop";
+
+backdrop.id =
+  "serviceManagerBackdrop";
 
 
-addBackdrop.innerHTML = `
+backdrop.innerHTML = `
 
 <form
   class="service-modal"
-  id="addServiceForm"
+  id="serviceManagerForm"
 >
 
-  <h3>
-    إضافة خدمة جديدة
-  </h3>
+  <div class="service-modal-head">
+
+    <h3 id="serviceManagerTitle">
+      إضافة خدمة جديدة
+    </h3>
+
+    <button
+      type="button"
+      class="service-modal-close"
+      id="serviceManagerClose"
+    >
+      ✕
+    </button>
+
+  </div>
 
 
-  <div
-    class="service-modal-grid"
-  >
+  <div class="service-modal-grid">
 
 
     <label>
@@ -784,7 +977,7 @@ addBackdrop.innerHTML = `
       اسم الخدمة
 
       <input
-        id="addServiceName"
+        id="serviceName"
         required
       >
 
@@ -796,8 +989,19 @@ addBackdrop.innerHTML = `
       العنوان الصغير
 
       <input
-        id="addServiceKicker"
-        placeholder="Digital Marketing"
+        id="serviceKicker"
+        placeholder="Visual Production"
+      >
+
+    </label>
+
+
+    <label>
+
+      الرقم
+
+      <input
+        id="serviceNumber"
       >
 
     </label>
@@ -808,7 +1012,7 @@ addBackdrop.innerHTML = `
       الأيقونة
 
       <input
-        id="addServiceIcon"
+        id="serviceIcon"
         maxlength="8"
         placeholder="✦"
       >
@@ -818,64 +1022,21 @@ addBackdrop.innerHTML = `
 
     <label>
 
-      الرقم
+      الترتيب
 
       <input
-        id="addServiceNumber"
-        readonly
+        id="serviceOrder"
+        type="number"
+        min="1"
       >
 
     </label>
 
 
-    <label class="full">
-
-      الوصف
-
-      <textarea
-        id="addServiceDescription"
-        required
-      ></textarea>
-
-    </label>
-
-
-    <label class="full">
-
-      رابط الصورة
+    <label class="service-visible-row">
 
       <input
-        id="addServiceImage"
-        dir="ltr"
-        placeholder="https://..."
-      >
-
-      <small
-        class="service-note"
-      >
-
-        رابط صورة مباشر يبدأ بـ https://
-
-      </small>
-
-    </label>
-
-
-    <div class="full">
-
-      <img
-        id="addServicePreview"
-        class="service-image-preview"
-        alt=""
-      >
-
-    </div>
-
-
-    <label>
-
-      <input
-        id="addServiceVisible"
+        id="serviceVisible"
         type="checkbox"
         checked
       >
@@ -885,189 +1046,85 @@ addBackdrop.innerHTML = `
     </label>
 
 
-  </div>
-
-
-  <div
-    class="service-modal-actions"
-  >
-
-
-    <button
-      type="button"
-      class="secondary-btn"
-      id="cancelAddService"
-    >
-      إلغاء
-    </button>
-
-
-    <button
-      type="submit"
-      class="primary-btn"
-    >
-      إضافة ونشر
-    </button>
-
-
-  </div>
-
-</form>
-
-`;
-
-
-document.body.appendChild(
-  addBackdrop
-);
-
-
-/* =========================================================
-   EDIT MODAL
-========================================================= */
-
-const editBackdrop =
-  document.createElement("div");
-
-
-editBackdrop.className =
-  "service-modal-backdrop";
-
-editBackdrop.id =
-  "editServiceBackdrop";
-
-
-editBackdrop.innerHTML = `
-
-<form
-  class="service-modal"
-  id="editServiceForm"
->
-
-  <h3>
-    تعديل الخدمة
-  </h3>
-
-
-  <div
-    class="service-modal-grid"
-  >
-
-
-    <label>
-
-      اسم الخدمة
-
-      <input
-        id="editServiceName"
-        required
-      >
-
-    </label>
-
-
-    <label>
-
-      العنوان الصغير
-
-      <input
-        id="editServiceKicker"
-      >
-
-    </label>
-
-
-    <label>
-
-      الرقم
-
-      <input
-        id="editServiceNumber"
-      >
-
-    </label>
-
-
-    <label>
-
-      الأيقونة
-
-      <input
-        id="editServiceIcon"
-        maxlength="8"
-      >
-
-    </label>
-
-
     <label class="full">
 
-      الوصف
+      وصف الخدمة
 
       <textarea
-        id="editServiceDescription"
+        id="serviceDescription"
       ></textarea>
 
     </label>
 
 
-    <label class="full">
+    <label class="full service-file-box">
 
-      رابط الصورة
+      اختر صورة من الجهاز
 
       <input
-        id="editServiceImage"
-        dir="ltr"
+        id="serviceImageFile"
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif"
       >
+
+      <span class="service-file-note">
+
+        اختر الصورة من الكمبيوتر مباشرة.
+        الحد الأقصى من صفحة الأدمن 10MB.
+
+      </span>
 
     </label>
 
 
-    <div class="full">
+    <div
+      class="full service-preview-wrap"
+      id="servicePreviewWrap"
+    >
 
       <img
-        id="editServicePreview"
-        class="service-image-preview"
-        alt=""
+        id="servicePreview"
+        alt="معاينة الصورة"
       >
 
     </div>
 
 
-    <label>
+    <div
+      class="full service-upload-status"
+      id="serviceUploadStatus"
+    >
 
-      <input
-        id="editServiceVisible"
-        type="checkbox"
-      >
+      ⏳ جاري رفع الصورة...
 
-      إظهار الخدمة في الموقع
-
-    </label>
+    </div>
 
 
   </div>
 
 
-  <div
-    class="service-modal-actions"
-  >
+  <div class="service-modal-actions">
 
 
     <button
       type="button"
-      class="secondary-btn"
-      id="cancelEditService"
+      class="service-modal-cancel"
+      id="serviceManagerCancel"
     >
+
       إلغاء
+
     </button>
 
 
     <button
       type="submit"
-      class="primary-btn"
+      class="service-modal-save"
+      id="serviceManagerSave"
     >
+
       حفظ ونشر
+
     </button>
 
 
@@ -1079,414 +1136,120 @@ editBackdrop.innerHTML = `
 
 
 document.body.appendChild(
-  editBackdrop
+  backdrop
 );
 
 
 /* =========================================================
-   RENDER SERVICES IN ADMIN
+   MODAL ELEMENTS
 ========================================================= */
 
-function renderServices() {
+const modalForm =
+  $("#serviceManagerForm");
 
-  /*
-    FIRST ORIGINAL CARDS
-  */
+const modalTitle =
+  $("#serviceManagerTitle");
 
-  originalCards.forEach(
-    (card, index) => {
+const serviceName =
+  $("#serviceName");
 
-      const service =
-        services[index];
+const serviceKicker =
+  $("#serviceKicker");
 
-      if (!service) {
-        return;
-      }
+const serviceNumber =
+  $("#serviceNumber");
 
+const serviceIcon =
+  $("#serviceIcon");
 
-      card.dataset.serviceId =
-        service.id;
+const serviceOrder =
+  $("#serviceOrder");
 
+const serviceVisible =
+  $("#serviceVisible");
 
-      const number =
-        card.querySelector(
-          ".service-number"
-        );
+const serviceDescription =
+  $("#serviceDescription");
 
-      if (number) {
-        number.textContent =
-          service.number ||
-          service.id;
-      }
+const serviceImageFile =
+  $("#serviceImageFile");
 
+const servicePreview =
+  $("#servicePreview");
 
-      const icon =
-        card.querySelector(
-          ".service-icon"
-        );
+const servicePreviewWrap =
+  $("#servicePreviewWrap");
 
-      if (icon) {
-        icon.textContent =
-          service.icon ||
-          "✦";
-      }
+const serviceUploadStatus =
+  $("#serviceUploadStatus");
+
+const serviceSaveButton =
+  $("#serviceManagerSave");
 
 
-      const kicker =
-        card.querySelector(
-          ".service-kicker"
-        );
+/* =========================================================
+   CURRENT EDIT STATE
+========================================================= */
 
-      if (kicker) {
-        kicker.textContent =
-          service.kicker ||
-          "Service";
-      }
+let modalMode =
+  "add";
 
+let editingServiceId =
+  null;
 
-      const title =
-        card.querySelector("h3");
+let currentImageUrl =
+  "";
 
-      if (title) {
-        title.textContent =
-          service.name ||
-          service.title ||
-          "Service";
-      }
+let selectedImageFile =
+  null;
+
+let previewObjectUrl =
+  null;
 
 
-      const description =
-        card.querySelector("p");
+/* =========================================================
+   RESET IMAGE PREVIEW
+========================================================= */
 
-      if (description) {
-        description.textContent =
-          service.description ||
-          "";
-      }
+function clearPreviewObjectUrl() {
 
+  if (previewObjectUrl) {
 
-      const image =
-        card.querySelector("img");
-
-      if (
-        image &&
-        service.image
-      ) {
-        image.src =
-          service.image;
-      }
-
-
-      card.style.display =
-        service.visible === false
-          ? "none"
-          : "";
-
-
-      let editButton =
-        card.querySelector(
-          ".service-edit-chip"
-        );
-
-
-      if (!editButton) {
-
-        editButton =
-          document.createElement(
-            "button"
-          );
-
-        editButton.type =
-          "button";
-
-        editButton.className =
-          "service-edit-chip";
-
-        editButton.textContent =
-          "✎ تعديل الخدمة";
-
-
-        card.appendChild(
-          editButton
-        );
-
-      }
-
-
-      editButton.onclick =
-        event => {
-
-          event.stopPropagation();
-
-          openEditService(
-            service.id
-          );
-
-        };
-
-    }
-  );
-
-
-  /*
-    REMOVE OLD DYNAMIC SERVICES
-  */
-
-  $$(".dynamic-service-card")
-    .forEach(
-      card =>
-        card.remove()
+    URL.revokeObjectURL(
+      previewObjectUrl
     );
 
+    previewObjectUrl =
+      null;
 
-  const servicesGrid =
-    originalCards[0]
-      ?.parentElement;
-
-
-  if (!servicesGrid) {
-    return;
   }
-
-
-  /*
-    EXTRA SERVICES
-    05 / 06 / ...
-  */
-
-  services
-    .slice(
-      originalCards.length
-    )
-    .forEach(
-      service => {
-
-        if (
-          service.visible === false
-        ) {
-          return;
-        }
-
-
-        const card =
-          document.createElement(
-            "article"
-          );
-
-
-        card.className =
-          "service-card dynamic-service-card";
-
-
-        const imageHtml =
-          service.image
-            ? `
-                <img
-                  src="${escapeHtml(service.image)}"
-                  alt="${escapeHtml(
-                    service.name ||
-                    service.title ||
-                    ""
-                  )}"
-                >
-              `
-            : `
-                <div
-                  class="dynamic-service-placeholder"
-                >
-                  ${escapeHtml(
-                    service.icon ||
-                    "✦"
-                  )}
-                </div>
-              `;
-
-
-        card.innerHTML = `
-
-          <div
-            class="dynamic-service-image"
-          >
-
-            ${imageHtml}
-
-
-            <span
-              class="dynamic-service-number"
-            >
-
-              ${escapeHtml(
-                service.number ||
-                service.id
-              )}
-
-            </span>
-
-
-            <button
-              type="button"
-              class="service-edit-chip"
-            >
-
-              ✎ تعديل الخدمة
-
-            </button>
-
-          </div>
-
-
-          <div
-            class="dynamic-service-content"
-          >
-
-            <span
-              class="dynamic-service-kicker"
-            >
-
-              ${escapeHtml(
-                service.kicker ||
-                "Service"
-              )}
-
-            </span>
-
-
-            <h3>
-
-              ${escapeHtml(
-                service.name ||
-                service.title ||
-                "Service"
-              )}
-
-            </h3>
-
-
-            <p>
-
-              ${escapeHtml(
-                service.description ||
-                ""
-              )}
-
-            </p>
-
-          </div>
-
-        `;
-
-
-        card
-          .querySelector(
-            ".service-edit-chip"
-          )
-          .onclick =
-            event => {
-
-              event.stopPropagation();
-
-              openEditService(
-                service.id
-              );
-
-            };
-
-
-        servicesGrid.appendChild(
-          card
-        );
-
-      }
-    );
 
 }
 
 
-/* =========================================================
-   FIX TOP HEADER BUTTON
-   SERVICES PAGE ONLY
-========================================================= */
+function showImagePreview(url) {
 
-function setupServicesHeaderButton() {
+  if (!url) {
 
-  /*
-    Find button:
-    إضافة مشروع جديد
-    or
-    Add New Project
-  */
+    servicePreview
+      .removeAttribute("src");
 
-  const allButtons = [
-    ...document.querySelectorAll(
-      "button, a"
-    )
-  ];
+    servicePreviewWrap
+      .classList
+      .remove("visible");
 
-
-  const oldButton =
-    allButtons.find(
-      element => {
-
-        const label =
-          safeText(
-            element.textContent
-          );
-
-        return (
-          label.includes(
-            "إضافة مشروع جديد"
-          )
-          ||
-          label.includes(
-            "Add New Project"
-          )
-        );
-
-      }
-    );
-
-
-  if (!oldButton) {
     return;
+
   }
 
 
-  /*
-    Clone to remove old project event listener
-  */
-
-  const newButton =
-    oldButton.cloneNode(true);
+  servicePreview.src =
+    url;
 
 
-  newButton.innerHTML =
-    "+ إضافة خدمة جديدة +";
-
-
-  newButton.setAttribute(
-    "data-services-add-button",
-    "true"
-  );
-
-
-  oldButton.replaceWith(
-    newButton
-  );
-
-
-  newButton.addEventListener(
-    "click",
-    event => {
-
-      event.preventDefault();
-
-      event.stopPropagation();
-
-
-      openAddService();
-
-    }
-  );
+  servicePreviewWrap
+    .classList
+    .add("visible");
 
 }
 
@@ -1497,294 +1260,68 @@ function setupServicesHeaderButton() {
 
 function openAddService() {
 
-  const form =
-    $("#addServiceForm");
+  modalMode =
+    "add";
+
+  editingServiceId =
+    null;
+
+  currentImageUrl =
+    "";
+
+  selectedImageFile =
+    null;
 
 
-  form.reset();
+  clearPreviewObjectUrl();
+
+
+  modalForm.reset();
+
+
+  modalTitle.textContent =
+    "إضافة خدمة جديدة";
 
 
   const id =
     getNextServiceId();
 
 
-  $("#addServiceNumber")
-    .value =
-      id;
+  serviceNumber.value =
+    id;
 
 
-  $("#addServiceVisible")
-    .checked =
-      true;
+  serviceOrder.value =
+    Number(id);
 
 
-  $("#addServicePreview")
-    .removeAttribute(
-      "src"
-    );
+  serviceIcon.value =
+    "✦";
 
 
-  addBackdrop
-    .classList
-    .add(
-      "open"
-    );
+  serviceVisible.checked =
+    true;
+
+
+  serviceImageFile.value =
+    "";
+
+
+  showImagePreview("");
+
+
+  backdrop.classList.add(
+    "open"
+  );
 
 }
-
-
-/* =========================================================
-   ADD IMAGE PREVIEW
-========================================================= */
-
-$("#addServiceImage")
-  .addEventListener(
-    "input",
-    event => {
-
-      const url =
-        safeText(
-          event.target.value
-        );
-
-
-      if (url) {
-
-        $("#addServicePreview")
-          .src =
-            url;
-
-      } else {
-
-        $("#addServicePreview")
-          .removeAttribute(
-            "src"
-          );
-
-      }
-
-    }
-  );
-
-
-/* =========================================================
-   CANCEL ADD
-========================================================= */
-
-$("#cancelAddService")
-  .onclick =
-    () => {
-
-      addBackdrop
-        .classList
-        .remove(
-          "open"
-        );
-
-    };
-
-
-/* =========================================================
-   SAVE NEW SERVICE
-========================================================= */
-
-$("#addServiceForm")
-  .addEventListener(
-    "submit",
-    async event => {
-
-      event.preventDefault();
-
-
-      const button =
-        event.submitter;
-
-
-      button.disabled =
-        true;
-
-      button.textContent =
-        "جاري الإضافة...";
-
-
-      try {
-
-
-        const id =
-          getNextServiceId();
-
-
-        const name =
-          safeText(
-            $("#addServiceName")
-              .value
-          );
-
-
-        const service = {
-
-          id,
-
-          order:
-            Number(id),
-
-          number:
-            id,
-
-          name,
-
-          title:
-            name,
-
-          kicker:
-            safeText(
-              $("#addServiceKicker")
-                .value
-            )
-            ||
-            "Service",
-
-          icon:
-            safeText(
-              $("#addServiceIcon")
-                .value
-            )
-            ||
-            "✦",
-
-          description:
-            safeText(
-              $("#addServiceDescription")
-                .value
-            ),
-
-          image:
-            safeText(
-              $("#addServiceImage")
-                .value
-            ),
-
-          visible:
-            $("#addServiceVisible")
-              .checked,
-
-          published:
-            $("#addServiceVisible")
-              .checked,
-
-          updated:
-            new Date()
-              .toISOString()
-
-        };
-
-
-        await setDoc(
-
-          doc(
-            db,
-            SERVICES_COLLECTION,
-            id
-          ),
-
-          service,
-
-          {
-            merge:false
-          }
-
-        );
-
-
-        services.push(
-          service
-        );
-
-
-        services.sort(
-          (a, b) =>
-            Number(
-              a.order || 999
-            )
-            -
-            Number(
-              b.order || 999
-            )
-        );
-
-
-        saveLocal();
-
-        renderServices();
-
-
-        addBackdrop
-          .classList
-          .remove(
-            "open"
-          );
-
-
-        console.info(
-          `✅ New service ${id} added:`,
-          name
-        );
-
-
-        if (
-          typeof window.showToast ===
-          "function"
-        ) {
-
-          window.showToast(
-            "تمت إضافة الخدمة ونشرها"
-          );
-
-        }
-
-
-      } catch (error) {
-
-
-        console.error(
-          "❌ Add service error:",
-          error
-        );
-
-
-        alert(
-          "حدث خطأ أثناء إضافة الخدمة."
-        );
-
-
-      } finally {
-
-
-        button.disabled =
-          false;
-
-
-        button.textContent =
-          "إضافة ونشر";
-
-
-      }
-
-    }
-  );
 
 
 /* =========================================================
    OPEN EDIT SERVICE
 ========================================================= */
 
-let editingServiceId =
-  null;
-
-
-function openEditService(
-  id
-) {
+function openEditService(id) {
 
   const service =
     services.find(
@@ -1795,339 +1332,814 @@ function openEditService(
 
 
   if (!service) {
+
+    console.warn(
+      "Service not found:",
+      id
+    );
+
+    return;
+
+  }
+
+
+  modalMode =
+    "edit";
+
+  editingServiceId =
+    String(service.id);
+
+  currentImageUrl =
+    service.image || "";
+
+  selectedImageFile =
+    null;
+
+
+  clearPreviewObjectUrl();
+
+
+  modalForm.reset();
+
+
+  modalTitle.textContent =
+    "تعديل الخدمة";
+
+
+  serviceName.value =
+    service.name ||
+    service.title ||
+    "";
+
+
+  serviceKicker.value =
+    service.kicker ||
+    "";
+
+
+  serviceNumber.value =
+    service.number ||
+    service.id ||
+    "";
+
+
+  serviceIcon.value =
+    service.icon ||
+    "✦";
+
+
+  serviceOrder.value =
+    Number(
+      service.order ||
+      service.id ||
+      1
+    );
+
+
+  serviceDescription.value =
+    service.description ||
+    "";
+
+
+  serviceVisible.checked =
+    service.visible !== false;
+
+
+  serviceImageFile.value =
+    "";
+
+
+  showImagePreview(
+    currentImageUrl
+  );
+
+
+  backdrop.classList.add(
+    "open"
+  );
+
+}
+
+
+/* =========================================================
+   CLOSE MODAL
+========================================================= */
+
+function closeServiceModal() {
+
+  backdrop.classList.remove(
+    "open"
+  );
+
+
+  selectedImageFile =
+    null;
+
+
+  serviceImageFile.value =
+    "";
+
+
+  clearPreviewObjectUrl();
+
+}
+
+
+/* =========================================================
+   CLOSE EVENTS
+========================================================= */
+
+$("#serviceManagerClose")
+  .addEventListener(
+    "click",
+    closeServiceModal
+  );
+
+
+$("#serviceManagerCancel")
+  .addEventListener(
+    "click",
+    closeServiceModal
+  );
+
+
+backdrop.addEventListener(
+  "click",
+  event => {
+
+    if (
+      event.target ===
+      backdrop
+    ) {
+
+      closeServiceModal();
+
+    }
+
+  }
+);
+
+
+/* =========================================================
+   SELECT IMAGE FROM DEVICE
+========================================================= */
+
+serviceImageFile.addEventListener(
+  "change",
+  event => {
+
+    const file =
+      event.target.files?.[0];
+
+
+    if (!file) {
+
+      selectedImageFile =
+        null;
+
+      return;
+
+    }
+
+
+    if (
+      !file.type.startsWith("image/")
+    ) {
+
+      alert(
+        "اختر ملف صورة فقط."
+      );
+
+      event.target.value =
+        "";
+
+      return;
+
+    }
+
+
+    if (
+      file.size >
+      10 * 1024 * 1024
+    ) {
+
+      alert(
+        "الصورة أكبر من 10MB."
+      );
+
+      event.target.value =
+        "";
+
+      return;
+
+    }
+
+
+    selectedImageFile =
+      file;
+
+
+    clearPreviewObjectUrl();
+
+
+    previewObjectUrl =
+      URL.createObjectURL(
+        file
+      );
+
+
+    showImagePreview(
+      previewObjectUrl
+    );
+
+  }
+);
+
+
+/* =========================================================
+   UPDATE ORIGINAL CARD
+========================================================= */
+
+function updateOriginalCard(
+  card,
+  service
+) {
+
+  if (!card) {
     return;
   }
 
 
-  editingServiceId =
-    String(id);
+  card.dataset.serviceId =
+    service.id;
 
 
-  $("#editServiceName")
-    .value =
-      service.name ||
-      service.title ||
-      "";
+  const number =
+    card.querySelector(
+      ".service-number"
+    );
 
+  if (number) {
 
-  $("#editServiceKicker")
-    .value =
-      service.kicker ||
-      "";
-
-
-  $("#editServiceNumber")
-    .value =
+    number.textContent =
       service.number ||
-      service.id ||
-      "";
-
-
-  $("#editServiceIcon")
-    .value =
-      service.icon ||
-      "";
-
-
-  $("#editServiceDescription")
-    .value =
-      service.description ||
-      "";
-
-
-  $("#editServiceImage")
-    .value =
-      service.image ||
-      "";
-
-
-  $("#editServiceVisible")
-    .checked =
-      service.visible !== false;
-
-
-  if (
-    service.image
-  ) {
-
-    $("#editServicePreview")
-      .src =
-        service.image;
-
-  } else {
-
-    $("#editServicePreview")
-      .removeAttribute(
-        "src"
-      );
+      service.id;
 
   }
 
 
-  editBackdrop
-    .classList
-    .add(
-      "open"
+  const icon =
+    card.querySelector(
+      ".service-icon"
+    );
+
+  if (icon) {
+
+    icon.textContent =
+      service.icon ||
+      "✦";
+
+  }
+
+
+  const kicker =
+    card.querySelector(
+      ".service-kicker"
+    );
+
+  if (kicker) {
+
+    kicker.textContent =
+      service.kicker ||
+      "Service";
+
+  }
+
+
+  const title =
+    card.querySelector("h3");
+
+  if (title) {
+
+    title.textContent =
+      service.name ||
+      service.title ||
+      "Service";
+
+  }
+
+
+  const description =
+    card.querySelector("p");
+
+  if (description) {
+
+    description.textContent =
+      service.description ||
+      "";
+
+  }
+
+
+  const image =
+    card.querySelector("img");
+
+
+  if (image) {
+
+    if (service.image) {
+
+      image.src =
+        service.image;
+
+      image.style.display =
+        "";
+
+    } else {
+
+      image.style.display =
+        "none";
+
+    }
+
+  }
+
+
+  if (
+    service.visible === false
+  ) {
+
+    card.classList.add(
+      "hidden-service-admin"
+    );
+
+  } else {
+
+    card.classList.remove(
+      "hidden-service-admin"
+    );
+
+  }
+
+
+  let editButton =
+    card.querySelector(
+      ".service-edit-chip"
+    );
+
+
+  if (!editButton) {
+
+    editButton =
+      document.createElement(
+        "button"
+      );
+
+    editButton.type =
+      "button";
+
+    editButton.className =
+      "service-edit-chip";
+
+    editButton.textContent =
+      "✎ تعديل الخدمة";
+
+
+    card.appendChild(
+      editButton
+    );
+
+  }
+
+
+  editButton.onclick =
+    event => {
+
+      event.preventDefault();
+
+      event.stopPropagation();
+
+
+      openEditService(
+        service.id
+      );
+
+    };
+
+}
+
+
+/* =========================================================
+   RENDER SERVICES IN ADMIN
+========================================================= */
+
+function renderServices() {
+
+  services.sort(
+    (a, b) =>
+      Number(
+        a.order ||
+        a.id ||
+        999
+      )
+      -
+      Number(
+        b.order ||
+        b.id ||
+        999
+      )
+  );
+
+
+  /*
+    First original HTML cards.
+  */
+
+  originalCards.forEach(
+    (card, index) => {
+
+      const service =
+        services[index];
+
+
+      if (!service) {
+
+        card.style.display =
+          "none";
+
+        return;
+
+      }
+
+
+      card.style.display =
+        "";
+
+
+      updateOriginalCard(
+        card,
+        service
+      );
+
+    }
+  );
+
+
+  /*
+    Remove old dynamic cards.
+  */
+
+  $$(".dynamic-service-card")
+    .forEach(
+      card =>
+        card.remove()
+    );
+
+
+  const grid =
+    originalCards[0]
+      ?.parentElement;
+
+
+  if (!grid) {
+
+    return;
+
+  }
+
+
+  /*
+    Extra services: 05, 06...
+  */
+
+  services
+    .slice(
+      originalCards.length
+    )
+    .forEach(
+      service => {
+
+        /*
+          Clone the original service card
+          so the new service has the same
+          exact design as the admin.
+        */
+
+        const card =
+          originalCards[0]
+            .cloneNode(true);
+
+
+        card.classList.add(
+          "dynamic-service-card"
+        );
+
+
+        /*
+          Avoid duplicate element IDs.
+        */
+
+        if (card.id) {
+
+          card.removeAttribute(
+            "id"
+          );
+
+        }
+
+
+        card
+          .querySelectorAll("[id]")
+          .forEach(
+            element =>
+              element.removeAttribute(
+                "id"
+              )
+          );
+
+
+        /*
+          Remove previous edit button
+          copied from original.
+        */
+
+        card
+          .querySelectorAll(
+            ".service-edit-chip"
+          )
+          .forEach(
+            button =>
+              button.remove()
+          );
+
+
+        updateOriginalCard(
+          card,
+          service
+        );
+
+
+        grid.appendChild(
+          card
+        );
+
+      }
     );
 
 }
 
 
 /* =========================================================
-   EDIT IMAGE PREVIEW
+   SAVE ADD / EDIT SERVICE
 ========================================================= */
 
-$("#editServiceImage")
-  .addEventListener(
-    "input",
-    event => {
+modalForm.addEventListener(
+  "submit",
+  async event => {
 
-      const url =
-        safeText(
-          event.target.value
-        );
+    event.preventDefault();
 
 
-      if (url) {
+    serviceSaveButton.disabled =
+      true;
 
-        $("#editServicePreview")
-          .src =
-            url;
 
-      } else {
+    serviceSaveButton.textContent =
+      selectedImageFile
+        ? "جاري رفع الصورة..."
+        : "جاري الحفظ...";
 
-        $("#editServicePreview")
-          .removeAttribute(
-            "src"
+
+    try {
+
+      let imageUrl =
+        currentImageUrl;
+
+
+      /*
+        Upload selected file first.
+      */
+
+      if (selectedImageFile) {
+
+        serviceUploadStatus
+          .classList
+          .add("show");
+
+
+        imageUrl =
+          await uploadImageToCloudinary(
+            selectedImageFile
           );
+
+
+        serviceUploadStatus
+          .classList
+          .remove("show");
+
+
+        currentImageUrl =
+          imageUrl;
+
+
+        showImagePreview(
+          imageUrl
+        );
 
       }
 
-    }
-  );
 
-
-/* =========================================================
-   CANCEL EDIT
-========================================================= */
-
-$("#cancelEditService")
-  .onclick =
-    () => {
-
-      editBackdrop
-        .classList
-        .remove(
-          "open"
+      const name =
+        cleanText(
+          serviceName.value
         );
 
-    };
+
+      if (!name) {
+
+        throw new Error(
+          "اكتب اسم الخدمة."
+        );
+
+      }
 
 
-/* =========================================================
-   SAVE EDIT
-========================================================= */
-
-$("#editServiceForm")
-  .addEventListener(
-    "submit",
-    async event => {
-
-      event.preventDefault();
+      let id;
 
 
       if (
-        !editingServiceId
+        modalMode === "edit"
       ) {
-        return;
+
+        id =
+          editingServiceId;
+
+      } else {
+
+        id =
+          getNextServiceId();
+
       }
 
 
-      const button =
-        event.submitter;
+      const service = {
 
+        id:
 
-      button.disabled =
-        true;
+          String(id),
 
-      button.textContent =
-        "جاري الحفظ...";
+        name,
 
-
-      try {
-
-
-        const index =
-          services.findIndex(
-            item =>
-              String(item.id) ===
-              String(editingServiceId)
-          );
-
-
-        if (
-          index < 0
-        ) {
-          return;
-        }
-
-
-        const oldService =
-          services[index];
-
-
-        const name =
-          safeText(
-            $("#editServiceName")
-              .value
-          );
-
-
-        const updatedService = {
-
-          ...oldService,
-
+        title:
           name,
 
-          title:
-            name,
+        kicker:
+          cleanText(
+            serviceKicker.value
+          ) ||
+          "Service",
 
-          kicker:
-            safeText(
-              $("#editServiceKicker")
-                .value
-            ),
+        number:
+          cleanText(
+            serviceNumber.value
+          ) ||
+          String(id),
 
-          number:
-            safeText(
-              $("#editServiceNumber")
-                .value
-            )
-            ||
-            oldService.id,
+        icon:
+          cleanText(
+            serviceIcon.value
+          ) ||
+          "✦",
 
-          icon:
-            safeText(
-              $("#editServiceIcon")
-                .value
-            )
-            ||
-            "✦",
+        order:
+          Number(
+            serviceOrder.value
+          ) ||
+          Number(id) ||
+          1,
 
-          description:
-            safeText(
-              $("#editServiceDescription")
-                .value
-            ),
-
-          image:
-            safeText(
-              $("#editServiceImage")
-                .value
-            ),
-
-          visible:
-            $("#editServiceVisible")
-              .checked,
-
-          published:
-            $("#editServiceVisible")
-              .checked,
-
-          updated:
-            new Date()
-              .toISOString()
-
-        };
-
-
-        await setDoc(
-
-          doc(
-            db,
-            SERVICES_COLLECTION,
-            oldService.id
+        description:
+          cleanText(
+            serviceDescription.value
           ),
 
-          updatedService,
+        image:
+          imageUrl || "",
 
-          {
-            merge:false
-          }
+        visible:
+          serviceVisible.checked,
 
+        published:
+          serviceVisible.checked,
+
+        updated:
+          new Date()
+            .toISOString()
+
+      };
+
+
+      /*
+        Save to Firestore.
+      */
+
+      await setDoc(
+
+        doc(
+          db,
+          SERVICES_COLLECTION,
+          String(id)
+        ),
+
+        service,
+
+        {
+          merge: false
+        }
+
+      );
+
+
+      /*
+        Update local immediately.
+      */
+
+      const existingIndex =
+        services.findIndex(
+          item =>
+            String(item.id) ===
+            String(id)
         );
 
 
-        services[index] =
-          updatedService;
+      if (
+        existingIndex >= 0
+      ) {
 
+        services[
+          existingIndex
+        ] =
+          service;
 
-        saveLocal();
+      } else {
 
-        renderServices();
-
-
-        editBackdrop
-          .classList
-          .remove(
-            "open"
-          );
-
-
-        console.info(
-          `✅ Service ${oldService.id} updated`
+        services.push(
+          service
         );
-
-
-      } catch (error) {
-
-
-        console.error(
-          "❌ Update service error:",
-          error
-        );
-
-
-        alert(
-          "حدث خطأ أثناء تعديل الخدمة."
-        );
-
-
-      } finally {
-
-
-        button.disabled =
-          false;
-
-
-        button.textContent =
-          "حفظ ونشر";
-
 
       }
 
-    }
-  );
+
+      saveLocal();
+
+      renderServices();
 
 
-/* =========================================================
-   CLOSE MODALS WHEN CLICKING OUTSIDE
-========================================================= */
+      closeServiceModal();
 
-addBackdrop.addEventListener(
-  "click",
-  event => {
 
-    if (
-      event.target ===
-      addBackdrop
-    ) {
+      console.info(
+        `✅ Service ${id} saved successfully.`,
+        service
+      );
 
-      addBackdrop
+
+      showMessage(
+        modalMode === "add"
+          ? "تمت إضافة الخدمة ونشرها."
+          : "تم تعديل الخدمة ونشرها."
+      );
+
+
+    } catch (error) {
+
+
+      serviceUploadStatus
         .classList
-        .remove(
-          "open"
-        );
+        .remove("show");
+
+
+      console.error(
+        "❌ Service save error:",
+        error
+      );
+
+
+      alert(
+        error.message ||
+        "حدث خطأ أثناء حفظ الخدمة."
+      );
+
+
+    } finally {
+
+
+      serviceSaveButton.disabled =
+        false;
+
+
+      serviceSaveButton.textContent =
+        "حفظ ونشر";
 
     }
 
@@ -2135,29 +2147,8 @@ addBackdrop.addEventListener(
 );
 
 
-editBackdrop.addEventListener(
-  "click",
-  event => {
-
-    if (
-      event.target ===
-      editBackdrop
-    ) {
-
-      editBackdrop
-        .classList
-        .remove(
-          "open"
-        );
-
-    }
-
-  }
-);
-
-
 /* =========================================================
-   FIRESTORE LISTENER
+   FIRESTORE LIVE LISTENER
 ========================================================= */
 
 onSnapshot(
@@ -2169,25 +2160,21 @@ onSnapshot(
 
   snapshot => {
 
-
-    if (
-      snapshot.empty
-    ) {
-      return;
-    }
-
+    /*
+      Ignore old random test documents.
+      We use numeric IDs like:
+      01, 02, 03...
+    */
 
     const remoteServices =
       snapshot.docs
 
         .map(
           documentSnapshot => ({
-
             id:
               documentSnapshot.id,
 
             ...documentSnapshot.data()
-
           })
         )
 
@@ -2219,7 +2206,9 @@ onSnapshot(
     if (
       !remoteServices.length
     ) {
+
       return;
+
     }
 
 
@@ -2231,13 +2220,12 @@ onSnapshot(
 
     renderServices();
 
-
   },
 
   error => {
 
     console.error(
-      "❌ Services listener error:",
+      "❌ Services Firestore listener:",
       error
     );
 
@@ -2247,12 +2235,31 @@ onSnapshot(
 
 
 /* =========================================================
-   SYNC ORIGINAL 4 SERVICES
+   SEED ONLY MISSING ORIGINAL SERVICES
 ========================================================= */
 
-async function syncOriginalServices() {
+async function seedMissingOriginalServices() {
 
   try {
+
+    const snapshot =
+      await getDocs(
+        collection(
+          db,
+          SERVICES_COLLECTION
+        )
+      );
+
+
+    const existingIds =
+      new Set(
+        snapshot.docs.map(
+          documentSnapshot =>
+            String(
+              documentSnapshot.id
+            )
+        )
+      );
 
 
     for (
@@ -2263,52 +2270,40 @@ async function syncOriginalServices() {
     ) {
 
 
-      const original =
-        ORIGINAL_SERVICES[index];
-
-
       const id =
-        String(
-          index + 1
-        )
-        .padStart(
-          2,
-          "0"
-        );
-
-
-      const existing =
-        services.find(
-          item =>
-            String(item.id) ===
-            String(id)
-        );
+        String(index + 1)
+          .padStart(2, "0");
 
 
       /*
-        If already on Firestore/local,
-        preserve saved edits.
+        Don't overwrite services
+        already edited in Firestore.
       */
 
-      const service =
-        existing
-          ? {
-              ...original,
-              ...existing,
+      if (
+        existingIds.has(id)
+      ) {
 
-              id,
+        continue;
 
-              order:
-                index + 1
-            }
-          : {
-              ...original,
+      }
 
-              id,
 
-              order:
-                index + 1
-            };
+      const service = {
+
+        ...ORIGINAL_SERVICES[
+          index
+        ],
+
+        id,
+
+        number:
+          id,
+
+        order:
+          index + 1
+
+      };
 
 
       await setDoc(
@@ -2322,27 +2317,24 @@ async function syncOriginalServices() {
         service,
 
         {
-          merge:true
+          merge:false
         }
 
       );
 
+
+      console.info(
+        `✅ Missing service ${id} created.`
+      );
+
     }
-
-
-    console.info(
-      "✅ Original services synced to Firestore."
-    );
-
 
   } catch (error) {
 
-
     console.error(
-      "❌ Original services sync error:",
+      "❌ Original services seed error:",
       error
     );
-
 
   }
 
@@ -2350,7 +2342,259 @@ async function syncOriginalServices() {
 
 
 /* =========================================================
-   START
+   HEADER BUTTON
+   + ADD SERVICE ONLY ON SERVICES PAGE
+========================================================= */
+
+let headerButton =
+  null;
+
+let originalHeaderHtml =
+  null;
+
+
+function findHeaderAddButton() {
+
+  const candidates = [
+    ...document.querySelectorAll(
+      "button, a"
+    )
+  ];
+
+
+  return candidates.find(
+    element => {
+
+      const label =
+        cleanText(
+          element.textContent
+        );
+
+
+      return (
+        label.includes(
+          "إضافة مشروع جديد"
+        )
+        ||
+        label.includes(
+          "Add New Project"
+        )
+        ||
+        element.dataset
+          .servicesAddButton ===
+          "true"
+      );
+
+    }
+  );
+
+}
+
+
+/* =========================================================
+   CHECK SERVICES PAGE ACTIVE
+========================================================= */
+
+function servicesPageIsActive() {
+
+  if (!servicesPage) {
+    return false;
+  }
+
+
+  /*
+    Works with most admin page systems:
+    active class / display none / hidden.
+  */
+
+  if (
+    servicesPage.classList
+      .contains("active")
+  ) {
+
+    return true;
+
+  }
+
+
+  const style =
+    getComputedStyle(
+      servicesPage
+    );
+
+
+  return (
+    style.display !== "none" &&
+    style.visibility !== "hidden" &&
+    servicesPage.offsetParent !== null
+  );
+
+}
+
+
+/* =========================================================
+   UPDATE HEADER BUTTON TEXT
+========================================================= */
+
+function updateHeaderButton() {
+
+  if (!headerButton) {
+
+    headerButton =
+      findHeaderAddButton();
+
+
+    if (
+      headerButton &&
+      originalHeaderHtml ===
+      null
+    ) {
+
+      originalHeaderHtml =
+        headerButton.innerHTML;
+
+    }
+
+  }
+
+
+  if (!headerButton) {
+    return;
+  }
+
+
+  if (
+    servicesPageIsActive()
+  ) {
+
+    headerButton.innerHTML =
+      "+ إضافة خدمة جديدة +";
+
+
+    headerButton.dataset
+      .servicesAddButton =
+        "true";
+
+  } else {
+
+    if (
+      originalHeaderHtml !==
+      null
+    ) {
+
+      headerButton.innerHTML =
+        originalHeaderHtml;
+
+    }
+
+  }
+
+}
+
+
+/* =========================================================
+   INTERCEPT HEADER BUTTON ON SERVICES PAGE
+========================================================= */
+
+document.addEventListener(
+  "click",
+  event => {
+
+    if (!headerButton) {
+
+      updateHeaderButton();
+
+    }
+
+
+    if (
+      !headerButton
+      ||
+      !servicesPageIsActive()
+    ) {
+
+      return;
+
+    }
+
+
+    const clickedButton =
+      event.target ===
+        headerButton
+      ||
+      headerButton.contains(
+        event.target
+      );
+
+
+    if (!clickedButton) {
+      return;
+    }
+
+
+    /*
+      Stop Add Project action only
+      while Services page is active.
+    */
+
+    event.preventDefault();
+
+    event.stopPropagation();
+
+    event.stopImmediatePropagation();
+
+
+    openAddService();
+
+  },
+
+  true
+);
+
+
+/* =========================================================
+   WATCH ADMIN PAGE CHANGES
+========================================================= */
+
+document.addEventListener(
+  "click",
+  () => {
+
+    setTimeout(
+      updateHeaderButton,
+      80
+    );
+
+  }
+);
+
+
+const observer =
+  new MutationObserver(
+    () => {
+
+      updateHeaderButton();
+
+    }
+  );
+
+
+observer.observe(
+  document.body,
+  {
+    subtree:true,
+    attributes:true,
+    attributeFilter:[
+      "class",
+      "style",
+      "hidden"
+    ]
+  }
+);
+
+
+/* =========================================================
+   INITIAL START
 ========================================================= */
 
 saveLocal();
@@ -2358,24 +2602,32 @@ saveLocal();
 renderServices();
 
 
-/*
-  Change header button:
-  + Add New Project +
-  to:
-  + إضافة خدمة جديدة +
-*/
-
 setTimeout(
-  setupServicesHeaderButton,
-  350
+  updateHeaderButton,
+  300
 );
 
 
-/*
-  Sync original services
-*/
-
 setTimeout(
-  syncOriginalServices,
-  1200
+  seedMissingOriginalServices,
+  900
+);
+
+
+/* =========================================================
+   READY
+========================================================= */
+
+console.info(
+  "✅ Service manager ready."
+);
+
+console.info(
+  "☁️ Cloudinary:",
+  CLOUDINARY_CLOUD_NAME
+);
+
+console.info(
+  "📁 Upload preset:",
+  CLOUDINARY_UPLOAD_PRESET
 );
