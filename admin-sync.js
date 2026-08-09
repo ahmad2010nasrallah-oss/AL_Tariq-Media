@@ -1,6 +1,14 @@
 /* =========================================================
    AL-TARIQ MEDIA
-   ADMIN PROJECTS → CLOUDINARY → FIRESTORE SYNC
+   ADMIN PROJECTS SYNC
+
+   Local Admin
+        ↓
+   Cloudinary
+        ↓
+   Firestore / projects
+        ↓
+   Public Website
 ========================================================= */
 
 
@@ -81,7 +89,7 @@ const CLOUDINARY_UPLOAD_URL =
 
 
 /* =========================================================
-   LOCAL ADMIN DATABASE
+   LOCAL ADMIN STORAGE
 ========================================================= */
 
 const SETTINGS_KEY =
@@ -97,23 +105,18 @@ const STORE =
 
 
 /* =========================================================
-   CLOUDINARY CACHE
+   CLOUDINARY IMAGE CACHE
 ========================================================= */
 
-/*
-  نحفظ روابط الصور التي سبق رفعها حتى
-  لا يعيد رفع نفس الصورة كل مرة يعمل Sync.
-*/
-
 const IMAGE_CACHE_KEY =
-  "altariq_cloudinary_project_images_v1";
+  "altariq_project_cloudinary_cache_v2";
 
 
-function readImageCache() {
+function loadImageCache() {
 
   try {
 
-    const data =
+    const value =
       JSON.parse(
         localStorage.getItem(
           IMAGE_CACHE_KEY
@@ -121,24 +124,34 @@ function readImageCache() {
       );
 
 
-    return (
-      data &&
-      typeof data === "object"
-    )
-      ? data
-      : {};
+    if (
+      value &&
+      typeof value === "object" &&
+      !Array.isArray(value)
+    ) {
 
-  } catch {
+      return value;
 
-    return {};
+    }
+
+
+  } catch (error) {
+
+    console.warn(
+      "Image cache read error:",
+      error
+    );
 
   }
+
+
+  return {};
 
 }
 
 
 let imageCache =
-  readImageCache();
+  loadImageCache();
 
 
 function saveImageCache() {
@@ -155,11 +168,72 @@ function saveImageCache() {
   } catch (error) {
 
     console.warn(
-      "Could not save image cache:",
+      "Image cache save error:",
       error
     );
 
   }
+
+}
+
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+function cleanString(value) {
+
+  return typeof value === "string"
+    ? value.trim()
+    : "";
+
+}
+
+
+function isHttpUrl(value) {
+
+  return /^https?:\/\//i.test(
+    cleanString(value)
+  );
+
+}
+
+
+function isCloudinaryUrl(value) {
+
+  return /^https:\/\/res\.cloudinary\.com\//i.test(
+    cleanString(value)
+  );
+
+}
+
+
+function isDataImage(value) {
+
+  return /^data:image\//i.test(
+    cleanString(value)
+  );
+
+}
+
+
+function createProjectId(project) {
+
+  if (
+    project &&
+    project.id !== undefined &&
+    project.id !== null &&
+    String(project.id).trim()
+  ) {
+
+    return String(
+      project.id
+    );
+
+  }
+
+
+  return crypto.randomUUID();
 
 }
 
@@ -178,7 +252,13 @@ function readSettings() {
       ) || "{}"
     );
 
-  } catch {
+  } catch (error) {
+
+    console.warn(
+      "Settings read error:",
+      error
+    );
+
 
     return {};
 
@@ -188,13 +268,14 @@ function readSettings() {
 
 
 /* =========================================================
-   OPEN INDEXEDDB
+   INDEXEDDB
 ========================================================= */
 
 function openDB() {
 
   return new Promise(
     (resolve, reject) => {
+
 
       const request =
         indexedDB.open(
@@ -235,13 +316,13 @@ function openDB() {
               .contains(STORE)
           ) {
 
-            database
-              .createObjectStore(
-                STORE,
-                {
-                  keyPath: "id"
-                }
-              );
+            database.createObjectStore(
+              STORE,
+              {
+                keyPath:
+                  "id"
+              }
+            );
 
           }
 
@@ -265,6 +346,7 @@ async function readProjects() {
 
   return new Promise(
     (resolve, reject) => {
+
 
       const transaction =
         database.transaction(
@@ -309,51 +391,244 @@ async function readProjects() {
 
 
 /* =========================================================
-   CHECK PUBLIC HTTP IMAGE
+   GET IMAGE FROM PROJECT
+
+   Supports old versions of admin.
 ========================================================= */
 
-function isPublicImageUrl(value) {
+function getProjectImage(project) {
 
-  if (
-    typeof value !== "string"
-  ) {
-
-    return false;
-
+  if (!project) {
+    return "";
   }
 
 
-  return /^https?:\/\//i.test(
-    value.trim()
+  return (
+
+    project.image ||
+
+    project.publicImage ||
+
+    project.imageUrl ||
+
+    project.imageURL ||
+
+    project.image_data ||
+
+    project.imageData ||
+
+    project.photo ||
+
+    ""
+
   );
 
 }
 
 
 /* =========================================================
-   CHECK DATA IMAGE
+   GET DRIVE LINK
 ========================================================= */
 
-function isDataImage(value) {
+function getDriveLink(project) {
 
-  if (
-    typeof value !== "string"
-  ) {
+  return cleanString(
 
-    return false;
+    project.driveLink ||
 
-  }
+    project.driveUrl ||
 
+    project.driveURL ||
 
-  return /^data:image\//i.test(
-    value
+    project.drive_url ||
+
+    project.link ||
+
+    ""
+
   );
 
 }
 
 
 /* =========================================================
-   CREATE IMAGE SIGNATURE
+   SAFE DATA URL → FILE
+
+   IMPORTANT:
+   This replaces atob().
+   Browser fetch() decodes the Data URL safely.
+========================================================= */
+
+async function dataUrlToFile(
+  dataUrl,
+  filename = "project-image.jpg"
+) {
+
+  if (
+    typeof dataUrl !== "string" ||
+    !dataUrl.startsWith("data:image/")
+  ) {
+
+    throw new Error(
+      "بيانات الصورة غير صحيحة."
+    );
+
+  }
+
+
+  try {
+
+
+    /*
+      We intentionally do NOT use atob().
+      fetch() handles base64 and encoded
+      Data URLs safely.
+    */
+
+    const response =
+      await fetch(
+        dataUrl
+      );
+
+
+    if (!response.ok) {
+
+      throw new Error(
+        "Could not read local image."
+      );
+
+    }
+
+
+    const blob =
+      await response.blob();
+
+
+    if (
+      !blob ||
+      blob.size === 0
+    ) {
+
+      throw new Error(
+        "الصورة فارغة."
+      );
+
+    }
+
+
+    if (
+      blob.type &&
+      !blob.type.startsWith(
+        "image/"
+      )
+    ) {
+
+      throw new Error(
+        "الملف ليس صورة."
+      );
+
+    }
+
+
+    let extension =
+      "jpg";
+
+
+    switch (
+      blob.type
+    ) {
+
+      case "image/png":
+
+        extension =
+          "png";
+
+        break;
+
+
+      case "image/webp":
+
+        extension =
+          "webp";
+
+        break;
+
+
+      case "image/gif":
+
+        extension =
+          "gif";
+
+        break;
+
+
+      case "image/avif":
+
+        extension =
+          "avif";
+
+        break;
+
+
+      case "image/jpeg":
+
+      default:
+
+        extension =
+          "jpg";
+
+        break;
+
+    }
+
+
+    const cleanFilename =
+      String(filename)
+        .replace(
+          /\.[a-z0-9]+$/i,
+          ""
+        );
+
+
+    return new File(
+
+      [blob],
+
+      `${cleanFilename}.${extension}`,
+
+      {
+
+        type:
+          blob.type ||
+          "image/jpeg"
+
+      }
+
+    );
+
+
+  } catch (error) {
+
+
+    console.error(
+      "Data URL conversion error:",
+      error
+    );
+
+
+    throw new Error(
+      "تعذر قراءة صورة المشروع من الجهاز."
+    );
+
+  }
+
+}
+
+
+/* =========================================================
+   IMAGE SIGNATURE
+
+   Prevents uploading same image every 2 seconds.
 ========================================================= */
 
 function createImageSignature(
@@ -361,117 +636,58 @@ function createImageSignature(
   image
 ) {
 
+  const value =
+    typeof image === "string"
+      ? image
+      : "";
+
+
   return [
 
-    String(
-      project.id || ""
+    createProjectId(
+      project
     ),
 
-    String(
-      project.updated ||
-      project.updatedAt ||
-      ""
+    project.updated ||
+    project.updatedAt ||
+    project.savedAt ||
+    "",
+
+    value.length,
+
+    value.slice(
+      0,
+      50
     ),
 
-    String(
-      image?.length || 0
+    value.slice(
+      -50
     )
 
-  ].join(":");
-
-}
-
-
-/* =========================================================
-   DATA URL → FILE
-========================================================= */
-
-function dataUrlToFile(
-  dataUrl,
-  filename = "project-image.jpg"
-) {
-
-  const parts =
-    dataUrl.split(",");
-
-
-  if (
-    parts.length < 2
-  ) {
-
-    throw new Error(
-      "Invalid image data."
-    );
-
-  }
-
-
-  const mimeMatch =
-    parts[0].match(
-      /data:([^;]+);base64/i
-    );
-
-
-  const mimeType =
-    mimeMatch
-      ? mimeMatch[1]
-      : "image/jpeg";
-
-
-  const binary =
-    atob(parts[1]);
-
-
-  const bytes =
-    new Uint8Array(
-      binary.length
-    );
-
-
-  for (
-    let i = 0;
-    i < binary.length;
-    i++
-  ) {
-
-    bytes[i] =
-      binary.charCodeAt(i);
-
-  }
-
-
-  return new File(
-    [bytes],
-    filename,
-    {
-      type:
-        mimeType
-    }
+  ].join(
+    "::"
   );
 
 }
 
 
 /* =========================================================
-   UPLOAD FILE TO CLOUDINARY
+   CLOUDINARY UPLOAD
 ========================================================= */
 
 async function uploadFileToCloudinary(
-  file
+  file,
+  projectId
 ) {
 
   if (!file) {
 
     throw new Error(
-      "No image selected."
+      "لم يتم العثور على صورة."
     );
 
   }
 
-
-  /*
-    Maximum 10 MB.
-  */
 
   if (
     file.size >
@@ -479,7 +695,21 @@ async function uploadFileToCloudinary(
   ) {
 
     throw new Error(
-      "حجم صورة المشروع أكبر من 10MB."
+      "حجم صورة العمل أكبر من 10MB."
+    );
+
+  }
+
+
+  if (
+    file.type &&
+    !file.type.startsWith(
+      "image/"
+    )
+  ) {
+
+    throw new Error(
+      "الملف المختار ليس صورة."
     );
 
   }
@@ -501,9 +731,32 @@ async function uploadFileToCloudinary(
   );
 
 
+  /*
+    Optional context only.
+    Asset folder is controlled
+    by Cloudinary Upload Preset.
+  */
+
+  if (projectId) {
+
+    formData.append(
+      "context",
+      `project_id=${String(projectId)}`
+    );
+
+  }
+
+
+  console.info(
+    `☁️ Uploading project ${projectId} image to Cloudinary...`
+  );
+
+
   const response =
     await fetch(
+
       CLOUDINARY_UPLOAD_URL,
+
       {
 
         method:
@@ -513,6 +766,7 @@ async function uploadFileToCloudinary(
           formData
 
       }
+
     );
 
 
@@ -535,15 +789,19 @@ async function uploadFileToCloudinary(
 
   if (!response.ok) {
 
+
     console.error(
-      "Cloudinary error:",
+      "Cloudinary upload response:",
       result
     );
 
 
     throw new Error(
+
       result?.error?.message ||
-      "تعذر رفع صورة المشروع إلى Cloudinary."
+
+      "فشل رفع الصورة إلى Cloudinary."
+
     );
 
   }
@@ -554,10 +812,20 @@ async function uploadFileToCloudinary(
   ) {
 
     throw new Error(
-      "Cloudinary did not return a secure image URL."
+      "لم يرجع Cloudinary رابط الصورة."
     );
 
   }
+
+
+  console.info(
+    `✅ Project ${projectId} image uploaded successfully.`
+  );
+
+
+  console.info(
+    `🖼️ ${result.secure_url}`
+  );
 
 
   return result.secure_url;
@@ -566,99 +834,139 @@ async function uploadFileToCloudinary(
 
 
 /* =========================================================
-   GET PROJECT IMAGE
+   READ FIRESTORE PROJECTS
 ========================================================= */
 
-function getOriginalProjectImage(
-  project
-) {
+async function readFirestoreProjects() {
 
-  /*
-    نحاول قراءة الصورة من جميع أسماء
-    الحقول المستخدمة في نسخ الأدمن السابقة.
-  */
+  const snapshot =
+    await getDocs(
+      collection(
+        db,
+        "projects"
+      )
+    );
 
-  return (
 
-    project.image ||
+  const map =
+    new Map();
 
-    project.image_data ||
 
-    project.imageData ||
+  snapshot.forEach(
+    snapshotDocument => {
 
-    project.publicImage ||
+      map.set(
 
-    project.imageUrl ||
+        snapshotDocument.id,
 
-    ""
+        {
 
+          id:
+            snapshotDocument.id,
+
+          ...snapshotDocument.data()
+
+        }
+
+      );
+
+    }
   );
+
+
+  return {
+
+    snapshot,
+
+    map
+
+  };
 
 }
 
 
 /* =========================================================
-   PREPARE PROJECT FOR PUBLIC WEBSITE
+   PREPARE PUBLIC PROJECT
 ========================================================= */
 
 async function preparePublicProject(
-  project
+  project,
+  remoteProject = null
 ) {
 
   const id =
-    String(
-      project.id ||
-      crypto.randomUUID()
-    );
-
-
-  let originalImage =
-    getOriginalProjectImage(
+    createProjectId(
       project
     );
+
+
+  const localImage =
+    getProjectImage(
+      project
+    );
+
+
+  /*
+    Existing public image in Firestore.
+    Important so we do not accidentally
+    erase uploaded images.
+  */
+
+  const remoteImage =
+    remoteProject
+      ? (
+          remoteProject.publicImage ||
+          remoteProject.imageUrl ||
+          remoteProject.image ||
+          ""
+        )
+      : "";
 
 
   let publicImage =
     "";
 
 
-  /*
-    الصورة أصلًا رابط عام؟
-    نستخدمها كما هي.
-  */
+  /* =====================================================
+     CASE 1
+     Local image is already public HTTP URL
+  ===================================================== */
 
   if (
-    isPublicImageUrl(
-      originalImage
+    isHttpUrl(
+      localImage
     )
   ) {
 
     publicImage =
-      originalImage;
+      cleanString(
+        localImage
+      );
 
   }
 
 
-  /*
-    الصورة Base64 مخزنة محليًا؟
-    نرفعها إلى Cloudinary.
-  */
+  /* =====================================================
+     CASE 2
+     Local image is Data URL/Base64
+  ===================================================== */
 
   else if (
     isDataImage(
-      originalImage
+      localImage
     )
   ) {
+
 
     const signature =
       createImageSignature(
         project,
-        originalImage
+        localImage
       );
 
 
     /*
-      سبق رفع نفس الصورة.
+      Already uploaded in this browser.
     */
 
     if (
@@ -672,24 +980,35 @@ async function preparePublicProject(
           signature
         ];
 
-    } else {
 
       console.info(
-        `☁️ Uploading project ${id} image to Cloudinary...`
+        `♻️ Using cached Cloudinary image for ${id}.`
       );
 
+    }
 
-      const file =
-        dataUrlToFile(
-          originalImage,
-          `project-${id}.jpg`
-        );
 
+    /*
+      Firestore already has Cloudinary image.
+      If the project did not change,
+      reuse it.
+    */
+
+    else if (
+      isCloudinaryUrl(
+        remoteImage
+      )
+      &&
+      (
+        !project.updated
+        ||
+        project.updated ===
+          remoteProject?.updated
+      )
+    ) {
 
       publicImage =
-        await uploadFileToCloudinary(
-          file
-        );
+        remoteImage;
 
 
       imageCache[
@@ -702,53 +1021,221 @@ async function preparePublicProject(
 
 
       console.info(
-        `✅ Project ${id} image uploaded to Cloudinary.`
+        `♻️ Using Firestore image for ${id}.`
       );
+
+    }
+
+
+    /*
+      Upload new image.
+    */
+
+    else {
+
+
+      const file =
+        await dataUrlToFile(
+
+          localImage,
+
+          `project-${id}.jpg`
+
+        );
+
+
+      publicImage =
+        await uploadFileToCloudinary(
+          file,
+          id
+        );
+
+
+      imageCache[
+        signature
+      ] =
+        publicImage;
+
+
+      saveImageCache();
 
     }
 
   }
 
 
-  /*
-    بعض نسخ الأدمن قد تخزن Blob/File
-    داخل IndexedDB.
-  */
+  /* =====================================================
+     CASE 3
+     IndexedDB contains Blob/File
+  ===================================================== */
 
   else if (
-    originalImage instanceof Blob
+    localImage instanceof Blob
   ) {
+
 
     const file =
 
-      originalImage instanceof File
+      localImage instanceof File
 
-        ? originalImage
+        ? localImage
 
         : new File(
-            [originalImage],
+
+            [localImage],
+
             `project-${id}.jpg`,
+
             {
+
               type:
-                originalImage.type ||
+                localImage.type ||
                 "image/jpeg"
+
             }
+
           );
 
 
     publicImage =
       await uploadFileToCloudinary(
-        file
+        file,
+        id
       );
 
   }
 
 
+  /* =====================================================
+     CASE 4
+     No local image.
+
+     Preserve existing Firestore image.
+  ===================================================== */
+
+  else if (
+    isHttpUrl(
+      remoteImage
+    )
+  ) {
+
+    publicImage =
+      remoteImage;
+
+
+    console.info(
+      `♻️ Preserving existing image for ${id}.`
+    );
+
+  }
+
+
+  /* =====================================================
+     NORMALIZE PROJECT DATA
+  ===================================================== */
+
+  const title =
+    cleanString(
+      project.title ||
+      project.name ||
+      remoteProject?.title ||
+      remoteProject?.name ||
+      "مشروع"
+    );
+
+
+  const category =
+    cleanString(
+      project.category ||
+      remoteProject?.category ||
+      "أعمالنا"
+    );
+
+
+  const description =
+    cleanString(
+      project.description ||
+      remoteProject?.description ||
+      ""
+    );
+
+
+  const driveLink =
+    getDriveLink(
+      project
+    ) ||
+    getDriveLink(
+      remoteProject || {}
+    );
+
+
+  const status =
+    cleanString(
+      project.status ||
+      remoteProject?.status ||
+      ""
+    );
+
+
+  let published;
+
+
+  if (
+    typeof project.published ===
+    "boolean"
+  ) {
+
+    published =
+      project.published;
+
+  }
+
+  else if (
+    typeof project.visible ===
+    "boolean"
+  ) {
+
+    published =
+      project.visible;
+
+  }
+
+  else if (
+    status
+  ) {
+
+    published =
+      status.toLowerCase() ===
+      "published";
+
+  }
+
+  else {
+
+    published =
+      remoteProject?.published !==
+      false;
+
+  }
+
+
+  const updated =
+
+    project.updated ||
+
+    project.updatedAt ||
+
+    new Date()
+      .toISOString();
+
+
   /*
-    مهم:
-    نخزن رابط Cloudinary في أكثر من اسم
-    لضمان التوافق مع public-admin-sync.js
-    والنسخ القديمة من الموقع.
+    IMPORTANT:
+    publicImage, imageUrl and image
+    all contain the same public URL.
+
+    This keeps old and new website
+    scripts compatible.
   */
 
   return {
@@ -756,6 +1243,20 @@ async function preparePublicProject(
     ...project,
 
     id,
+
+    name:
+      title,
+
+    title,
+
+    category,
+
+    description,
+
+    driveLink,
+
+    driveUrl:
+      driveLink,
 
     image:
       publicImage,
@@ -767,7 +1268,8 @@ async function preparePublicProject(
       publicImage,
 
     /*
-      لا نرسل base64 إلى Firestore.
+      Never upload large Base64 strings
+      into Firestore.
     */
 
     image_data:
@@ -776,10 +1278,17 @@ async function preparePublicProject(
     imageData:
       "",
 
-    updated:
-      project.updated ||
-      new Date()
-        .toISOString()
+    published,
+
+    visible:
+      published,
+
+    status:
+      published
+        ? "Published"
+        : "Draft",
+
+    updated
 
   };
 
@@ -787,7 +1296,7 @@ async function preparePublicProject(
 
 
 /* =========================================================
-   SYNC STATUS
+   SYNC CONTROL
 ========================================================= */
 
 let busy =
@@ -799,10 +1308,10 @@ let lastSignature =
 
 
 /* =========================================================
-   CREATE PROJECT SIGNATURE
+   CREATE SYNC SIGNATURE
 ========================================================= */
 
-function createProjectSignature(
+function createSyncSignature(
   settings,
   projects
 ) {
@@ -816,33 +1325,52 @@ function createProjectSignature(
 
 
       projects.map(
-        project => [
+        project => {
 
-          project.id,
 
-          project.updated,
+          const image =
+            getProjectImage(
+              project
+            );
 
-          project.updatedAt,
 
-          project.status,
+          return [
 
-          project.published,
+            project.id,
 
-          project.name,
+            project.updated,
 
-          project.title,
+            project.updatedAt,
 
-          project.category,
+            project.status,
 
-          project.driveLink,
+            project.published,
 
-          project.driveUrl,
+            project.visible,
 
-          getOriginalProjectImage(
-            project
-          )?.length || 0
+            project.name,
 
-        ]
+            project.title,
+
+            project.category,
+
+            project.description,
+
+            project.driveLink,
+
+            project.driveUrl,
+
+            typeof image === "string"
+              ? image.length
+              : (
+                  image instanceof Blob
+                    ? image.size
+                    : 0
+                )
+
+          ];
+
+        }
       )
 
     ]
@@ -870,6 +1398,7 @@ async function syncAll() {
 
   try {
 
+
     const settings =
       readSettings();
 
@@ -879,15 +1408,11 @@ async function syncAll() {
 
 
     const signature =
-      createProjectSignature(
+      createSyncSignature(
         settings,
         projects
       );
 
-
-    /*
-      لا يوجد أي تغيير.
-    */
 
     if (
       signature ===
@@ -900,12 +1425,12 @@ async function syncAll() {
 
 
     console.info(
-      `🔄 Syncing ${projects.length} project(s)...`
+      `🔄 Starting project sync: ${projects.length} project(s).`
     );
 
 
     /* =====================================================
-       WEBSITE SETTINGS
+       WEBSITE CONFIG
     ===================================================== */
 
     await setDoc(
@@ -927,10 +1452,33 @@ async function syncAll() {
       },
 
       {
-        merge:true
+
+        /*
+          Keep existing settings that may
+          not currently exist in localStorage.
+        */
+
+        merge:
+          true
+
       }
 
     );
+
+
+    /* =====================================================
+       CURRENT FIRESTORE PROJECTS
+    ===================================================== */
+
+    const {
+      snapshot:
+        existingSnapshot,
+
+      map:
+        existingMap
+
+    } =
+      await readFirestoreProjects();
 
 
     /* =====================================================
@@ -946,62 +1494,99 @@ async function syncAll() {
       of projects
     ) {
 
+
+      const id =
+        createProjectId(
+          project
+        );
+
+
+      const remoteProject =
+        existingMap.get(
+          id
+        ) || null;
+
+
       try {
 
-        const prepared =
+
+        const publicProject =
           await preparePublicProject(
-            project
+            {
+              ...project,
+              id
+            },
+            remoteProject
           );
 
 
         publicProjects.push(
-          prepared
+          publicProject
         );
 
 
-      } catch (imageError) {
+      } catch (error) {
+
 
         console.error(
-          `❌ Project ${project.id} image upload failed:`,
-          imageError
+          `❌ Project ${id} image upload failed:`,
+          error
         );
 
 
         /*
-          لا نوقف مزامنة باقي المشاريع.
-          نخزن المشروع حتى لو فشل رفع صورته.
+          Important:
+          Preserve old remote image if the
+          new local image fails to upload.
         */
+
+        const fallbackImage =
+
+          remoteProject?.publicImage ||
+
+          remoteProject?.imageUrl ||
+
+          remoteProject?.image ||
+
+          "";
+
 
         publicProjects.push({
 
           ...project,
 
-          id:
-            String(
-              project.id ||
-              crypto.randomUUID()
-            ),
+          id,
 
           image:
-            isPublicImageUrl(
-              project.image
-            )
-              ? project.image
-              : "",
+            fallbackImage,
 
           publicImage:
-            isPublicImageUrl(
-              project.publicImage
-            )
-              ? project.publicImage
-              : "",
+            fallbackImage,
 
           imageUrl:
-            isPublicImageUrl(
-              project.imageUrl
-            )
-              ? project.imageUrl
-              : ""
+            fallbackImage,
+
+          image_data:
+            "",
+
+          imageData:
+            "",
+
+          driveLink:
+            getDriveLink(
+              project
+            ),
+
+          driveUrl:
+            getDriveLink(
+              project
+            ),
+
+          updated:
+            project.updated ||
+            project.updatedAt ||
+            new Date()
+              .toISOString()
 
         });
 
@@ -1011,53 +1596,53 @@ async function syncAll() {
 
 
     /* =====================================================
-       READ CURRENT FIRESTORE PROJECTS
+       WRITE BATCH
     ===================================================== */
 
-    const existingSnapshot =
-      await getDocs(
-        collection(
-          db,
-          "projects"
-        )
+    const batch =
+      writeBatch(
+        db
       );
 
 
     const localIds =
       new Set(
+
         publicProjects.map(
           project =>
-            String(project.id)
+            String(
+              project.id
+            )
         )
+
       );
-
-
-    const batch =
-      writeBatch(db);
 
 
     /* =====================================================
        DELETE REMOVED PROJECTS
 
-       حفاظًا على البيانات:
-       لا نحذف كل Firestore لو IndexedDB فاضي فجأة.
+       Safety:
+       If IndexedDB suddenly returns zero projects,
+       we do NOT wipe Firestore.
     ===================================================== */
 
     if (
       projects.length > 0
     ) {
 
+
       existingSnapshot.forEach(
-        documentSnapshot => {
+        snapshotDocument => {
+
 
           if (
             !localIds.has(
-              documentSnapshot.id
+              snapshotDocument.id
             )
           ) {
 
             batch.delete(
-              documentSnapshot.ref
+              snapshotDocument.ref
             );
 
           }
@@ -1069,7 +1654,7 @@ async function syncAll() {
 
 
     /* =====================================================
-       SAVE PROJECTS TO FIRESTORE
+       SAVE PROJECTS
     ===================================================== */
 
     for (
@@ -1077,24 +1662,24 @@ async function syncAll() {
       of publicProjects
     ) {
 
-      const id =
-        String(
-          project.id
-        );
-
 
       batch.set(
 
         doc(
           db,
           "projects",
-          id
+          String(
+            project.id
+          )
         ),
 
         project,
 
         {
-          merge:false
+
+          merge:
+            false
+
         }
 
       );
@@ -1114,23 +1699,24 @@ async function syncAll() {
     );
 
 
-    /*
-      عرض روابط الصور للتأكد.
-    */
+    /* =====================================================
+       PRINT IMAGE LINKS
+    ===================================================== */
 
     publicProjects.forEach(
       project => {
+
 
         if (
           project.publicImage
         ) {
 
           console.info(
-            `🖼️ ${project.id}:`,
-            project.publicImage
+            `🖼️ ${project.id}: ${project.publicImage}`
           );
 
         }
+
 
       }
     );
@@ -1138,13 +1724,15 @@ async function syncAll() {
 
   } catch (error) {
 
+
     console.error(
-      "❌ Public project sync failed:",
+      "❌ Project sync failed:",
       error
     );
 
 
   } finally {
+
 
     busy =
       false;
@@ -1155,7 +1743,19 @@ async function syncAll() {
 
 
 /* =========================================================
-   ADMIN EVENTS
+   MANUAL SYNC COMMAND
+
+   You can run this in Console:
+
+   altariqSyncProjects()
+========================================================= */
+
+window.altariqSyncProjects =
+  syncAll;
+
+
+/* =========================================================
+   SETTINGS EVENT
 ========================================================= */
 
 window.addEventListener(
@@ -1164,12 +1764,19 @@ window.addEventListener(
 
   () => {
 
+    lastSignature =
+      "";
+
     syncAll();
 
   }
 
 );
 
+
+/* =========================================================
+   STORAGE EVENT
+========================================================= */
 
 window.addEventListener(
 
@@ -1182,6 +1789,9 @@ window.addEventListener(
       SETTINGS_KEY
     ) {
 
+      lastSignature =
+        "";
+
       syncAll();
 
     }
@@ -1192,35 +1802,75 @@ window.addEventListener(
 
 
 /* =========================================================
-   FORCE MANUAL SYNC FROM CONSOLE
+   OPTIONAL PROJECT UPDATE EVENTS
+
+   If admin.html dispatches these,
+   sync happens immediately.
 ========================================================= */
 
-window.altariqSyncProjects =
-  syncAll;
+window.addEventListener(
 
+  "altariq:projects-updated",
 
-/* =========================================================
-   AUTO SYNC
-========================================================= */
+  () => {
 
-/*
-  أول مزامنة بعد تحميل الأدمن.
-*/
+    lastSignature =
+      "";
 
-setTimeout(
-  syncAll,
-  800
+    syncAll();
+
+  }
+
 );
 
 
-/*
-  مزامنة دورية.
-  2 ثوانٍ كافية للأدمن.
-*/
+window.addEventListener(
+
+  "altariq:project-updated",
+
+  () => {
+
+    lastSignature =
+      "";
+
+    syncAll();
+
+  }
+
+);
+
+
+/* =========================================================
+   INITIAL SYNC
+========================================================= */
+
+setTimeout(
+
+  () => {
+
+    syncAll();
+
+  },
+
+  800
+
+);
+
+
+/* =========================================================
+   PERIODIC SYNC
+========================================================= */
 
 setInterval(
-  syncAll,
+
+  () => {
+
+    syncAll();
+
+  },
+
   2000
+
 );
 
 
@@ -1234,12 +1884,10 @@ console.info(
 
 
 console.info(
-  "☁️ Cloudinary cloud:",
-  CLOUDINARY_CLOUD_NAME
+  `☁️ Cloudinary: ${CLOUDINARY_CLOUD_NAME}`
 );
 
 
 console.info(
-  "📁 Project upload preset:",
-  CLOUDINARY_UPLOAD_PRESET
+  `📁 Projects preset: ${CLOUDINARY_UPLOAD_PRESET}`
 );
