@@ -44,6 +44,10 @@ const SERVICES_COLLECTION =
   "services";
 
 
+const servicesPage =
+  document.querySelector("#services");
+
+
 const cards = [
   ...document.querySelectorAll(
     "#services .service-card"
@@ -52,10 +56,10 @@ const cards = [
 
 
 /* =========================================================
-   READ THE 4 ORIGINAL SERVICES FROM ADMIN HTML
+   READ ORIGINAL SERVICES FROM ADMIN HTML
 ========================================================= */
 
-function readServicesFromAdminCards() {
+function readOriginalServices() {
 
   return cards.map(
     (card, index) => {
@@ -143,21 +147,15 @@ function readServicesFromAdminCards() {
 }
 
 
-/*
-  نحفظ نسخة أصلية فور تحميل الصفحة.
-  مهم جدًا حتى لا تغير بيانات Firestore القديمة
-  محتوى الخدمات الأربع قبل عملية الرفع.
-*/
-
-const ORIGINAL_ADMIN_SERVICES =
-  readServicesFromAdminCards();
+const ORIGINAL_SERVICES =
+  readOriginalServices();
 
 
 /* =========================================================
-   LOAD LOCAL DATA
+   LOAD LOCAL SERVICES
 ========================================================= */
 
-let savedServices = [];
+let localServices = [];
 
 try {
 
@@ -172,66 +170,85 @@ try {
     Array.isArray(parsed)
   ) {
 
-    savedServices =
+    localServices =
       parsed;
 
   }
 
 } catch {
 
-  savedServices = [];
+  localServices = [];
 
 }
 
 
 /* =========================================================
-   MERGE ORIGINAL SERVICES WITH LOCAL SAVED EDITS
+   PREPARE SERVICES
 ========================================================= */
 
 let services =
-  ORIGINAL_ADMIN_SERVICES.map(
+  ORIGINAL_SERVICES.map(
     original => {
 
-      /*
-        نأخذ فقط الخدمات ذات IDs الصحيحة
-        01 / 02 / 03 / 04.
-
-        أي ID عشوائي قديم لن يسيطر
-        على الخدمات الأصلية.
-      */
-
-      const saved =
-        savedServices.find(
+      const local =
+        localServices.find(
           item =>
             String(item.id) ===
             String(original.id)
         );
 
 
-      if (!saved) {
-
-        return {
-          ...original
-        };
-
-      }
-
-
-      return {
-
-        ...original,
-        ...saved,
-
-        id:
-          original.id,
-
-        order:
-          original.order
-
-      };
+      return local
+        ? {
+            ...original,
+            ...local,
+            id:
+              original.id,
+            order:
+              original.order
+          }
+        : {
+            ...original
+          };
 
     }
   );
+
+
+/*
+  إضافة الخدمات الإضافية
+  مثل 05 / 06 / 07 من LocalStorage
+*/
+
+localServices.forEach(
+  item => {
+
+    const exists =
+      services.some(
+        service =>
+          String(service.id) ===
+          String(item.id)
+      );
+
+
+    if (!exists) {
+
+      services.push(
+        item
+      );
+
+    }
+
+  }
+);
+
+
+services.sort(
+  (a, b) =>
+    Number(a.order || 999)
+    -
+    Number(b.order || 999)
+);
 
 
 /* =========================================================
@@ -264,10 +281,306 @@ function saveLocal() {
 
 
 /* =========================================================
-   DRAW SERVICES INSIDE ADMIN
+   HELPER
 ========================================================= */
 
-function drawServices() {
+function getNextServiceId() {
+
+  const numbers =
+    services
+      .map(
+        service =>
+          Number(
+            service.id
+          )
+      )
+      .filter(
+        number =>
+          Number.isFinite(
+            number
+          )
+      );
+
+
+  const next =
+    numbers.length
+      ? Math.max(
+          ...numbers
+        ) + 1
+      : 1;
+
+
+  return String(next)
+    .padStart(
+      2,
+      "0"
+    );
+
+}
+
+
+/* =========================================================
+   CSS
+========================================================= */
+
+const style =
+  document.createElement(
+    "style"
+  );
+
+
+style.textContent = `
+
+.service-edit-chip{
+  position:absolute;
+  z-index:8;
+  top:14px;
+  right:14px;
+  border:1px solid rgba(255,255,255,.18);
+  background:rgba(2,11,24,.84);
+  color:#fff;
+  border-radius:999px;
+  padding:8px 12px;
+  font-size:11px;
+  cursor:pointer;
+  backdrop-filter:blur(10px);
+  box-shadow:0 8px 25px rgba(0,0,0,.25);
+}
+
+.service-edit-chip:hover{
+  border-color:rgba(255,196,0,.65);
+}
+
+.add-service-admin-btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  margin:0 0 24px;
+  border:0;
+  border-radius:16px;
+  padding:14px 22px;
+  background:
+    linear-gradient(
+      135deg,
+      #ffc400,
+      #ffdc63
+    );
+  color:#071326;
+  font-weight:900;
+  font-size:15px;
+  cursor:pointer;
+  box-shadow:
+    0 12px 35px rgba(255,196,0,.22);
+  transition:.2s ease;
+}
+
+.add-service-admin-btn:hover{
+  transform:
+    translateY(-2px);
+}
+
+.service-modal-backdrop{
+  position:fixed;
+  inset:0;
+  z-index:20000;
+  display:none;
+  place-items:center;
+  padding:20px;
+  background:
+    rgba(0,5,13,.82);
+  backdrop-filter:
+    blur(12px);
+}
+
+.service-modal-backdrop.open{
+  display:grid;
+}
+
+.service-modal{
+  width:
+    min(760px,100%);
+  max-height:
+    92vh;
+  overflow:auto;
+  border-radius:
+    26px;
+  padding:
+    24px;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(11,29,55,.99),
+      rgba(4,13,28,.99)
+    );
+  border:
+    1px solid rgba(255,255,255,.12);
+  box-shadow:
+    0 30px 100px rgba(0,0,0,.58);
+}
+
+.service-modal h3{
+  margin:
+    0 0 20px;
+  color:#fff;
+  font-size:22px;
+}
+
+.service-modal-grid{
+  display:grid;
+  grid-template-columns:
+    1fr 1fr;
+  gap:14px;
+}
+
+.service-modal-grid .full{
+  grid-column:
+    1 / -1;
+}
+
+.service-modal label{
+  display:grid;
+  gap:7px;
+  color:#fff;
+  font-size:12px;
+}
+
+.service-modal input,
+.service-modal textarea{
+  width:100%;
+  box-sizing:border-box;
+  border:
+    1px solid rgba(255,255,255,.12);
+  background:
+    rgba(255,255,255,.06);
+  color:#fff;
+  border-radius:13px;
+  padding:12px;
+  outline:none;
+}
+
+.service-modal input:focus,
+.service-modal textarea:focus{
+  border-color:
+    rgba(255,196,0,.6);
+}
+
+.service-modal textarea{
+  min-height:100px;
+  resize:vertical;
+}
+
+.service-modal-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  margin-top:20px;
+}
+
+.service-image-preview{
+  width:100%;
+  max-height:280px;
+  object-fit:contain;
+  border-radius:15px;
+  background:#071326;
+  border:
+    1px solid rgba(255,255,255,.10);
+}
+
+.service-note{
+  color:#ffcf52;
+  font-size:10px;
+  line-height:1.7;
+}
+
+.dynamic-service-card{
+  position:relative;
+  overflow:hidden;
+  border-radius:26px;
+  border:
+    1px solid rgba(255,255,255,.10);
+  background:
+    #0c1d38;
+}
+
+.dynamic-service-image{
+  position:relative;
+  height:360px;
+  overflow:hidden;
+  background:
+    #080d18;
+}
+
+.dynamic-service-image img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+
+.dynamic-service-placeholder{
+  height:100%;
+  display:grid;
+  place-items:center;
+  color:#ffcf52;
+  font-size:46px;
+}
+
+.dynamic-service-content{
+  padding:24px;
+}
+
+.dynamic-service-kicker{
+  display:block;
+  color:#ffc400;
+  font-size:12px;
+  font-weight:800;
+  margin-bottom:12px;
+}
+
+.dynamic-service-content h3{
+  margin:0 0 12px;
+  color:#fff;
+  font-size:25px;
+}
+
+.dynamic-service-content p{
+  margin:0;
+  color:#aebbd0;
+  line-height:1.7;
+}
+
+@media(max-width:650px){
+
+  .service-modal-grid{
+    grid-template-columns:
+      1fr;
+  }
+
+  .service-modal-grid .full{
+    grid-column:auto;
+  }
+
+}
+
+`;
+
+
+document.head.appendChild(
+  style
+);
+
+
+/* =========================================================
+   RENDER SERVICES
+========================================================= */
+
+function renderServices() {
+
+  /*
+    أول 4 خدمات:
+    نعدّل البطاقات الأصلية الموجودة في HTML
+  */
 
   cards.forEach(
     (card, index) => {
@@ -284,8 +597,6 @@ function drawServices() {
         service.id;
 
 
-      /* NUMBER */
-
       const number =
         card.querySelector(
           ".service-number"
@@ -299,8 +610,6 @@ function drawServices() {
 
       }
 
-
-      /* ICON */
 
       const icon =
         card.querySelector(
@@ -316,8 +625,6 @@ function drawServices() {
       }
 
 
-      /* KICKER */
-
       const kicker =
         card.querySelector(
           ".service-kicker"
@@ -331,8 +638,6 @@ function drawServices() {
 
       }
 
-
-      /* TITLE */
 
       const title =
         card.querySelector(
@@ -349,8 +654,6 @@ function drawServices() {
       }
 
 
-      /* DESCRIPTION */
-
       const description =
         card.querySelector(
           "p"
@@ -364,8 +667,6 @@ function drawServices() {
 
       }
 
-
-      /* IMAGE */
 
       const image =
         card.querySelector(
@@ -383,365 +684,311 @@ function drawServices() {
       }
 
 
-      /* VISIBILITY */
-
       card.style.display =
         service.visible === false
           ? "none"
           : "";
 
 
-      /* EDIT BUTTON */
-
-      if (
-        !card.querySelector(
+      let editButton =
+        card.querySelector(
           ".service-edit-chip"
-        )
-      ) {
+        );
 
-        const button =
+
+      if (!editButton) {
+
+        editButton =
           document.createElement(
             "button"
           );
 
-        button.type =
+        editButton.type =
           "button";
 
-        button.className =
+        editButton.className =
           "service-edit-chip";
 
-        button.textContent =
+        editButton.textContent =
           "✎ تعديل الخدمة";
 
 
-        button.addEventListener(
-          "click",
-          event => {
-
-            event.stopPropagation();
-
-            openServiceEditor(
-              index
-            );
-
-          }
-        );
-
-
         card.appendChild(
-          button
+          editButton
         );
 
       }
 
+
+      editButton.onclick =
+        event => {
+
+          event.stopPropagation();
+
+          openEditServiceModal(
+            service.id
+          );
+
+        };
+
     }
   );
 
-}
 
+  /*
+    الخدمات الإضافية:
+    05 وما بعدها
+  */
 
-/* =========================================================
-   EDITOR CSS
-========================================================= */
-
-const editorStyle =
-  document.createElement(
-    "style"
-  );
-
-
-editorStyle.textContent = `
-
-.service-edit-chip{
-  position:absolute;
-  z-index:7;
-  top:14px;
-  right:14px;
-
-  border:
-    1px solid rgba(255,255,255,.18);
-
-  background:
-    rgba(2,11,24,.82);
-
-  color:#fff;
-
-  border-radius:999px;
-
-  padding:
-    8px 12px;
-
-  font-size:11px;
-
-  cursor:pointer;
-
-  backdrop-filter:
-    blur(10px);
-
-  box-shadow:
-    0 8px 25px rgba(0,0,0,.25);
-}
-
-
-.service-edit-chip:hover{
-  border-color:
-    rgba(255,196,0,.55);
-}
-
-
-#serviceEditorBackdrop{
-
-  position:fixed;
-
-  inset:0;
-
-  z-index:10000;
-
-  display:none;
-
-  place-items:center;
-
-  background:
-    rgba(0,5,13,.80);
-
-  backdrop-filter:
-    blur(12px);
-
-  padding:18px;
-}
-
-
-#serviceEditorBackdrop.open{
-  display:grid;
-}
-
-
-.service-editor{
-
-  width:
-    min(760px,100%);
-
-  max-height:
-    92vh;
-
-  overflow:auto;
-
-  border-radius:
-    26px;
-
-  padding:
-    22px;
-
-  background:
-    linear-gradient(
-      145deg,
-      rgba(11,29,55,.98),
-      rgba(4,13,28,.99)
+  document
+    .querySelectorAll(
+      ".dynamic-service-card"
+    )
+    .forEach(
+      element =>
+        element.remove()
     );
 
-  border:
-    1px solid rgba(255,255,255,.12);
 
-  box-shadow:
-    0 28px 90px rgba(0,0,0,.55);
-}
+  const grid =
+    cards[0]
+      ?.parentElement;
 
 
-.service-editor h3{
-
-  margin:
-    0 0 18px;
-
-  font-size:
-    22px;
-}
-
-
-.service-editor-grid{
-
-  display:grid;
-
-  grid-template-columns:
-    1fr 1fr;
-
-  gap:
-    13px;
-}
-
-
-.service-editor-grid .full{
-
-  grid-column:
-    1 / -1;
-}
-
-
-.service-editor label{
-
-  display:grid;
-
-  gap:
-    7px;
-
-  font-size:
-    11px;
-}
-
-
-.service-editor input,
-.service-editor textarea{
-
-  width:
-    100%;
-
-  box-sizing:
-    border-box;
-
-  border:
-    1px solid rgba(255,255,255,.12);
-
-  background:
-    rgba(255,255,255,.055);
-
-  color:
-    #fff;
-
-  border-radius:
-    13px;
-
-  padding:
-    11px 12px;
-
-  outline:
-    none;
-}
-
-
-.service-editor input:focus,
-.service-editor textarea:focus{
-
-  border-color:
-    rgba(255,196,0,.55);
-}
-
-
-.service-editor textarea{
-
-  min-height:
-    100px;
-
-  resize:
-    vertical;
-}
-
-
-.service-editor-actions{
-
-  display:flex;
-
-  gap:
-    10px;
-
-  justify-content:
-    flex-end;
-
-  margin-top:
-    18px;
-}
-
-
-.service-editor-preview{
-
-  width:
-    100%;
-
-  max-height:
-    280px;
-
-  object-fit:
-    contain;
-
-  background:
-    #071326;
-
-  border-radius:
-    14px;
-
-  border:
-    1px solid rgba(255,255,255,.1);
-}
-
-
-.service-editor-help{
-
-  color:
-    #ffcf52;
-
-  font-size:
-    10px;
-
-  line-height:
-    1.7;
-}
-
-
-@media(max-width:650px){
-
-  .service-editor-grid{
-    grid-template-columns:1fr;
+  if (!grid) {
+    return;
   }
 
-  .service-editor-grid .full{
-    grid-column:auto;
-  }
+
+  services
+    .slice(
+      cards.length
+    )
+    .forEach(
+      service => {
+
+        if (
+          service.visible === false
+        ) {
+          return;
+        }
+
+
+        const card =
+          document.createElement(
+            "article"
+          );
+
+        card.className =
+          "service-card dynamic-service-card";
+
+
+        const imageHtml =
+          service.image
+            ? `
+              <img
+                src="${service.image}"
+                alt=""
+              >
+            `
+            : `
+              <div
+                class="dynamic-service-placeholder"
+              >
+                ${
+                  service.icon ||
+                  "✦"
+                }
+              </div>
+            `;
+
+
+        card.innerHTML = `
+
+          <div
+            class="dynamic-service-image"
+          >
+
+            ${imageHtml}
+
+            <button
+              type="button"
+              class="service-edit-chip"
+            >
+              ✎ تعديل الخدمة
+            </button>
+
+          </div>
+
+
+          <div
+            class="dynamic-service-content"
+          >
+
+            <span
+              class="dynamic-service-kicker"
+            >
+
+              ${
+                service.kicker ||
+                "Service"
+              }
+
+            </span>
+
+
+            <h3>
+
+              ${
+                service.name ||
+                service.title ||
+                "Service"
+              }
+
+            </h3>
+
+
+            <p>
+
+              ${
+                service.description ||
+                ""
+              }
+
+            </p>
+
+          </div>
+
+        `;
+
+
+        card
+          .querySelector(
+            ".service-edit-chip"
+          )
+          .onclick =
+            event => {
+
+              event.stopPropagation();
+
+              openEditServiceModal(
+                service.id
+              );
+
+            };
+
+
+        grid.appendChild(
+          card
+        );
+
+      }
+    );
 
 }
-
-`;
-
-
-document.head.appendChild(
-  editorStyle
-);
 
 
 /* =========================================================
-   CREATE EDITOR
+   ADD SERVICE BUTTON
+   ONLY INSIDE SERVICES PAGE
 ========================================================= */
 
-const backdrop =
+if (servicesPage) {
+
+  const addServiceButton =
+    document.createElement(
+      "button"
+    );
+
+
+  addServiceButton.type =
+    "button";
+
+  addServiceButton.id =
+    "addServiceButton";
+
+  addServiceButton.className =
+    "add-service-admin-btn";
+
+  addServiceButton.innerHTML =
+    "+ إضافة خدمة جديدة +";
+
+
+  const titleBlock =
+    servicesPage.querySelector(
+      ".section-header"
+    )
+    ||
+    servicesPage.querySelector(
+      ".page-header"
+    )
+    ||
+    servicesPage.querySelector(
+      "h2"
+    );
+
+
+  if (
+    titleBlock &&
+    titleBlock.parentElement
+  ) {
+
+    titleBlock.parentElement
+      .insertBefore(
+        addServiceButton,
+        titleBlock.nextSibling
+      );
+
+  } else {
+
+    servicesPage.prepend(
+      addServiceButton
+    );
+
+  }
+
+}
+
+
+/* =========================================================
+   ADD SERVICE MODAL
+========================================================= */
+
+const addBackdrop =
   document.createElement(
     "div"
   );
 
 
-backdrop.id =
-  "serviceEditorBackdrop";
+addBackdrop.className =
+  "service-modal-backdrop";
+
+addBackdrop.id =
+  "addServiceBackdrop";
 
 
-backdrop.innerHTML = `
+addBackdrop.innerHTML = `
 
 <form
-  class="service-editor"
-  id="serviceEditorForm"
+  class="service-modal"
+  id="addServiceForm"
 >
 
   <h3>
-    تعديل الخدمة
+    إضافة خدمة جديدة
   </h3>
 
 
   <div
-    class="service-editor-grid"
+    class="service-modal-grid"
   >
-
 
     <label>
 
       اسم الخدمة
 
       <input
-        id="seName"
+        id="addServiceName"
         required
       >
 
@@ -753,19 +1000,8 @@ backdrop.innerHTML = `
       العنوان الصغير
 
       <input
-        id="seKicker"
-      >
-
-    </label>
-
-
-    <label>
-
-      الرقم
-
-      <input
-        id="seNumber"
-        maxlength="3"
+        id="addServiceKicker"
+        placeholder="Digital Marketing"
       >
 
     </label>
@@ -776,7 +1012,177 @@ backdrop.innerHTML = `
       الأيقونة
 
       <input
-        id="seIcon"
+        id="addServiceIcon"
+        maxlength="8"
+        placeholder="✦"
+      >
+
+    </label>
+
+
+    <label class="full">
+
+      الوصف
+
+      <textarea
+        id="addServiceDescription"
+        required
+      ></textarea>
+
+    </label>
+
+
+    <label class="full">
+
+      رابط الصورة
+
+      <input
+        id="addServiceImage"
+        dir="ltr"
+        placeholder="https://..."
+      >
+
+      <small
+        class="service-note"
+      >
+        رابط صورة مباشر يبدأ بـ https://
+      </small>
+
+    </label>
+
+
+    <div class="full">
+
+      <img
+        id="addServicePreview"
+        class="service-image-preview"
+        alt=""
+      >
+
+    </div>
+
+
+    <label>
+
+      <input
+        id="addServiceVisible"
+        type="checkbox"
+        checked
+      >
+
+      إظهار الخدمة في الموقع
+
+    </label>
+
+
+  </div>
+
+
+  <div
+    class="service-modal-actions"
+  >
+
+    <button
+      type="button"
+      class="secondary-btn"
+      id="cancelAddService"
+    >
+      إلغاء
+    </button>
+
+
+    <button
+      type="submit"
+      class="primary-btn"
+    >
+      إضافة ونشر
+    </button>
+
+  </div>
+
+</form>
+
+`;
+
+
+document.body.appendChild(
+  addBackdrop
+);
+
+
+/* =========================================================
+   EDIT SERVICE MODAL
+========================================================= */
+
+const editBackdrop =
+  document.createElement(
+    "div"
+  );
+
+
+editBackdrop.className =
+  "service-modal-backdrop";
+
+editBackdrop.id =
+  "editServiceBackdrop";
+
+
+editBackdrop.innerHTML = `
+
+<form
+  class="service-modal"
+  id="editServiceForm"
+>
+
+  <h3>
+    تعديل الخدمة
+  </h3>
+
+
+  <div
+    class="service-modal-grid"
+  >
+
+    <label>
+
+      اسم الخدمة
+
+      <input
+        id="editServiceName"
+        required
+      >
+
+    </label>
+
+
+    <label>
+
+      العنوان الصغير
+
+      <input
+        id="editServiceKicker"
+      >
+
+    </label>
+
+
+    <label>
+
+      الرقم
+
+      <input
+        id="editServiceNumber"
+      >
+
+    </label>
+
+
+    <label>
+
+      الأيقونة
+
+      <input
+        id="editServiceIcon"
         maxlength="8"
       >
 
@@ -788,7 +1194,7 @@ backdrop.innerHTML = `
       الوصف
 
       <textarea
-        id="seDescription"
+        id="editServiceDescription"
       ></textarea>
 
     </label>
@@ -799,18 +1205,9 @@ backdrop.innerHTML = `
       رابط الصورة
 
       <input
-        id="seImageUrl"
+        id="editServiceImage"
         dir="ltr"
-        placeholder="https://example.com/image.jpg"
       >
-
-      <small
-        class="service-editor-help"
-      >
-
-        استخدم رابط صورة مباشر يبدأ بـ https://
-
-      </small>
 
     </label>
 
@@ -818,9 +1215,9 @@ backdrop.innerHTML = `
     <div class="full">
 
       <img
-        class="service-editor-preview"
-        id="sePreview"
-        alt="معاينة الصورة"
+        id="editServicePreview"
+        class="service-image-preview"
+        alt=""
       >
 
     </div>
@@ -829,7 +1226,7 @@ backdrop.innerHTML = `
     <label>
 
       <input
-        id="seVisible"
+        id="editServiceVisible"
         type="checkbox"
       >
 
@@ -842,13 +1239,13 @@ backdrop.innerHTML = `
 
 
   <div
-    class="service-editor-actions"
+    class="service-modal-actions"
   >
 
     <button
       type="button"
       class="secondary-btn"
-      id="seCancel"
+      id="cancelEditService"
     >
       إلغاء
     </button>
@@ -869,12 +1266,12 @@ backdrop.innerHTML = `
 
 
 document.body.appendChild(
-  backdrop
+  editBackdrop
 );
 
 
 /* =========================================================
-   EDITOR VARIABLES
+   DOM HELPERS
 ========================================================= */
 
 const q =
@@ -884,147 +1281,68 @@ const q =
     );
 
 
-let editIndex =
-  -1;
-
-
 /* =========================================================
-   OPEN EDITOR
+   OPEN ADD MODAL
 ========================================================= */
 
-function openServiceEditor(
-  index
+if (
+  q("addServiceButton")
 ) {
 
-  editIndex =
-    index;
+  q("addServiceButton")
+    .onclick =
+      () => {
+
+        q("addServiceForm")
+          .reset();
 
 
-  const service =
-    services[index];
+        q("addServiceVisible")
+          .checked =
+            true;
 
 
-  if (!service) {
-    return;
-  }
+        q("addServicePreview")
+          .removeAttribute(
+            "src"
+          );
 
 
-  q("seName").value =
-    service.name ||
-    service.title ||
-    "";
+        addBackdrop
+          .classList
+          .add(
+            "open"
+          );
 
-
-  q("seKicker").value =
-    service.kicker ||
-    "";
-
-
-  q("seNumber").value =
-    service.number ||
-    service.id ||
-    "";
-
-
-  q("seIcon").value =
-    service.icon ||
-    "";
-
-
-  q("seDescription").value =
-    service.description ||
-    "";
-
-
-  q("seImageUrl").value =
-    service.image ||
-    "";
-
-
-  q("seVisible").checked =
-    service.visible !== false;
-
-
-  if (
-    service.image
-  ) {
-
-    q("sePreview").src =
-      service.image;
-
-  } else {
-
-    q("sePreview")
-      .removeAttribute(
-        "src"
-      );
-
-  }
-
-
-  backdrop.classList.add(
-    "open"
-  );
+      };
 
 }
 
 
 /* =========================================================
-   CLOSE EDITOR
+   ADD IMAGE PREVIEW
 ========================================================= */
 
-q("seCancel").onclick =
-  () => {
-
-    backdrop.classList.remove(
-      "open"
-    );
-
-  };
-
-
-backdrop.addEventListener(
-  "click",
-  event => {
-
-    if (
-      event.target ===
-      backdrop
-    ) {
-
-      backdrop.classList.remove(
-        "open"
-      );
-
-    }
-
-  }
-);
-
-
-/* =========================================================
-   IMAGE PREVIEW
-========================================================= */
-
-q("seImageUrl")
+q("addServiceImage")
   .addEventListener(
     "input",
     event => {
 
-      const imageUrl =
+      const url =
         event.target
           .value
           .trim();
 
 
-      if (imageUrl) {
+      if (url) {
 
-        q("sePreview").src =
-          imageUrl;
+        q("addServicePreview")
+          .src =
+            url;
 
       } else {
 
-        q("sePreview")
+        q("addServicePreview")
           .removeAttribute(
             "src"
           );
@@ -1036,10 +1354,27 @@ q("seImageUrl")
 
 
 /* =========================================================
-   SAVE SERVICE
+   CANCEL ADD
 ========================================================= */
 
-q("serviceEditorForm")
+q("cancelAddService")
+  .onclick =
+    () => {
+
+      addBackdrop
+        .classList
+        .remove(
+          "open"
+        );
+
+    };
+
+
+/* =========================================================
+   SAVE NEW SERVICE
+========================================================= */
+
+q("addServiceForm")
   .addEventListener(
     "submit",
     async event => {
@@ -1047,59 +1382,38 @@ q("serviceEditorForm")
       event.preventDefault();
 
 
-      if (
-        editIndex < 0
-      ) {
-        return;
-      }
-
-
-      const current =
-        services[
-          editIndex
-        ];
-
-
-      const submitButton =
+      const button =
         event.submitter;
 
 
-      submitButton.disabled =
+      button.disabled =
         true;
 
-
-      submitButton.textContent =
-        "جاري الحفظ...";
+      button.textContent =
+        "جاري الإضافة...";
 
 
       try {
 
-
-        /*
-          IDs ثابتة حسب ترتيب البطاقة.
-        */
-
         const id =
-          String(
-            editIndex + 1
-          )
-          .padStart(
-            2,
-            "0"
-          );
+          getNextServiceId();
 
 
         const name =
-          q("seName")
+          q("addServiceName")
             .value
             .trim();
 
 
         const service = {
 
-          ...current,
-
           id,
+
+          number:
+            id,
+
+          order:
+            Number(id),
 
           name,
 
@@ -1107,43 +1421,35 @@ q("serviceEditorForm")
             name,
 
           kicker:
-            q("seKicker")
-              .value
-              .trim(),
-
-          number:
-            q("seNumber")
+            q("addServiceKicker")
               .value
               .trim()
             ||
-            id,
+            "Service",
 
           icon:
-            q("seIcon")
+            q("addServiceIcon")
               .value
               .trim()
             ||
             "✦",
 
           description:
-            q("seDescription")
+            q("addServiceDescription")
               .value
               .trim(),
 
           image:
-            q("seImageUrl")
+            q("addServiceImage")
               .value
               .trim(),
 
-          order:
-            editIndex + 1,
-
           visible:
-            q("seVisible")
+            q("addServiceVisible")
               .checked,
 
           published:
-            q("seVisible")
+            q("addServiceVisible")
               .checked,
 
           updated:
@@ -1151,17 +1457,6 @@ q("serviceEditorForm")
               .toISOString()
 
         };
-
-
-        services[
-          editIndex
-        ] =
-          service;
-
-
-        saveLocal();
-
-        drawServices();
 
 
         await setDoc(
@@ -1182,13 +1477,37 @@ q("serviceEditorForm")
         );
 
 
-        backdrop.classList.remove(
-          "open"
+        services.push(
+          service
         );
 
 
+        services.sort(
+          (a, b) =>
+            Number(
+              a.order || 999
+            )
+            -
+            Number(
+              b.order || 999
+            )
+        );
+
+
+        saveLocal();
+
+        renderServices();
+
+
+        addBackdrop
+          .classList
+          .remove(
+            "open"
+          );
+
+
         console.info(
-          `✅ Service ${id} saved to Firestore:`,
+          `✅ New service ${id} added:`,
           name
         );
 
@@ -1199,7 +1518,7 @@ q("serviceEditorForm")
         ) {
 
           window.showToast(
-            "تم حفظ الخدمة ونشرها على الموقع"
+            "تمت إضافة الخدمة ونشرها"
           );
 
         }
@@ -1207,33 +1526,404 @@ q("serviceEditorForm")
 
       } catch (error) {
 
-
         console.error(
-          "❌ Service save failed:",
+          "❌ Add service error:",
           error
         );
 
 
         alert(
-          "حدث خطأ أثناء نشر الخدمة."
+          "حدث خطأ أثناء إضافة الخدمة."
         );
 
 
       } finally {
 
-
-        submitButton.disabled =
+        button.disabled =
           false;
 
-
-        submitButton.textContent =
-          "حفظ ونشر";
-
+        button.textContent =
+          "إضافة ونشر";
 
       }
 
     }
   );
+
+
+/* =========================================================
+   OPEN EDIT MODAL
+========================================================= */
+
+let editingServiceId =
+  null;
+
+
+function openEditServiceModal(
+  id
+) {
+
+  const service =
+    services.find(
+      item =>
+        String(item.id) ===
+        String(id)
+    );
+
+
+  if (!service) {
+    return;
+  }
+
+
+  editingServiceId =
+    String(id);
+
+
+  q("editServiceName")
+    .value =
+      service.name ||
+      service.title ||
+      "";
+
+
+  q("editServiceKicker")
+    .value =
+      service.kicker ||
+      "";
+
+
+  q("editServiceNumber")
+    .value =
+      service.number ||
+      service.id ||
+      "";
+
+
+  q("editServiceIcon")
+    .value =
+      service.icon ||
+      "";
+
+
+  q("editServiceDescription")
+    .value =
+      service.description ||
+      "";
+
+
+  q("editServiceImage")
+    .value =
+      service.image ||
+      "";
+
+
+  q("editServiceVisible")
+    .checked =
+      service.visible !== false;
+
+
+  if (
+    service.image
+  ) {
+
+    q("editServicePreview")
+      .src =
+        service.image;
+
+  } else {
+
+    q("editServicePreview")
+      .removeAttribute(
+        "src"
+      );
+
+  }
+
+
+  editBackdrop
+    .classList
+    .add(
+      "open"
+    );
+
+}
+
+
+/* =========================================================
+   EDIT IMAGE PREVIEW
+========================================================= */
+
+q("editServiceImage")
+  .addEventListener(
+    "input",
+    event => {
+
+      const url =
+        event.target
+          .value
+          .trim();
+
+
+      if (url) {
+
+        q("editServicePreview")
+          .src =
+            url;
+
+      } else {
+
+        q("editServicePreview")
+          .removeAttribute(
+            "src"
+          );
+
+      }
+
+    }
+  );
+
+
+/* =========================================================
+   CANCEL EDIT
+========================================================= */
+
+q("cancelEditService")
+  .onclick =
+    () => {
+
+      editBackdrop
+        .classList
+        .remove(
+          "open"
+        );
+
+    };
+
+
+/* =========================================================
+   SAVE EDIT
+========================================================= */
+
+q("editServiceForm")
+  .addEventListener(
+    "submit",
+    async event => {
+
+      event.preventDefault();
+
+
+      if (
+        !editingServiceId
+      ) {
+        return;
+      }
+
+
+      const button =
+        event.submitter;
+
+
+      button.disabled =
+        true;
+
+      button.textContent =
+        "جاري الحفظ...";
+
+
+      try {
+
+        const index =
+          services.findIndex(
+            item =>
+              String(item.id) ===
+              editingServiceId
+          );
+
+
+        if (
+          index < 0
+        ) {
+          return;
+        }
+
+
+        const old =
+          services[index];
+
+
+        const name =
+          q("editServiceName")
+            .value
+            .trim();
+
+
+        const updatedService = {
+
+          ...old,
+
+          id:
+            old.id,
+
+          name,
+
+          title:
+            name,
+
+          kicker:
+            q("editServiceKicker")
+              .value
+              .trim(),
+
+          number:
+            q("editServiceNumber")
+              .value
+              .trim()
+            ||
+            old.id,
+
+          icon:
+            q("editServiceIcon")
+              .value
+              .trim()
+            ||
+            "✦",
+
+          description:
+            q("editServiceDescription")
+              .value
+              .trim(),
+
+          image:
+            q("editServiceImage")
+              .value
+              .trim(),
+
+          visible:
+            q("editServiceVisible")
+              .checked,
+
+          published:
+            q("editServiceVisible")
+              .checked,
+
+          updated:
+            new Date()
+              .toISOString()
+
+        };
+
+
+        await setDoc(
+
+          doc(
+            db,
+            SERVICES_COLLECTION,
+            old.id
+          ),
+
+          updatedService,
+
+          {
+            merge:
+              false
+          }
+
+        );
+
+
+        services[index] =
+          updatedService;
+
+
+        saveLocal();
+
+        renderServices();
+
+
+        editBackdrop
+          .classList
+          .remove(
+            "open"
+          );
+
+
+        console.info(
+          `✅ Service ${old.id} updated`
+        );
+
+
+      } catch (error) {
+
+        console.error(
+          "❌ Update service error:",
+          error
+        );
+
+
+        alert(
+          "حدث خطأ أثناء تعديل الخدمة."
+        );
+
+
+      } finally {
+
+        button.disabled =
+          false;
+
+        button.textContent =
+          "حفظ ونشر";
+
+      }
+
+    }
+  );
+
+
+/* =========================================================
+   CLOSE MODALS BY BACKDROP
+========================================================= */
+
+addBackdrop.addEventListener(
+  "click",
+  event => {
+
+    if (
+      event.target ===
+      addBackdrop
+    ) {
+
+      addBackdrop
+        .classList
+        .remove(
+          "open"
+        );
+
+    }
+
+  }
+);
+
+
+editBackdrop.addEventListener(
+  "click",
+  event => {
+
+    if (
+      event.target ===
+      editBackdrop
+    ) {
+
+      editBackdrop
+        .classList
+        .remove(
+          "open"
+        );
+
+    }
+
+  }
+);
 
 
 /* =========================================================
@@ -1249,7 +1939,6 @@ onSnapshot(
 
   snapshot => {
 
-
     if (
       snapshot.empty
     ) {
@@ -1259,84 +1948,58 @@ onSnapshot(
     }
 
 
-    /*
-      نقرأ فقط IDs الصحيحة:
-      01 / 02 / 03 / 04
+    const remote =
+      snapshot.docs
+        .map(
+          documentSnapshot => ({
+            id:
+              documentSnapshot.id,
 
-      الـDocument العشوائي القديم
-      نتجاهله بالكامل.
-    */
-
-    snapshot.docs.forEach(
-      documentSnapshot => {
-
-        const id =
-          String(
-            documentSnapshot.id
-          );
-
-
-        const allowedIds =
-          [
-            "01",
-            "02",
-            "03",
-            "04"
-          ];
-
-
-        if (
-          !allowedIds.includes(
-            id
-          )
-        ) {
-
-          return;
-
-        }
+            ...documentSnapshot.data()
+          })
+        )
+        .filter(
+          item =>
+            /^\d+$/.test(
+              String(item.id)
+            )
+        )
+        .sort(
+          (a, b) =>
+            Number(
+              a.order ||
+              a.id ||
+              999
+            )
+            -
+            Number(
+              b.order ||
+              b.id ||
+              999
+            )
+        );
 
 
-        const index =
-          Number(id) - 1;
+    if (
+      remote.length
+    ) {
+
+      services =
+        remote;
 
 
-        if (
-          index < 0 ||
-          index >= services.length
-        ) {
+      saveLocal();
 
-          return;
+      renderServices();
 
-        }
-
-
-        services[index] = {
-
-          ...services[index],
-
-          ...documentSnapshot.data(),
-
-          id,
-
-          order:
-            index + 1
-
-        };
-
-      }
-    );
-
-
-    saveLocal();
-
-    drawServices();
+    }
 
   },
 
   error => {
 
     console.error(
-      "❌ Services listener failed:",
+      "❌ Services listener error:",
       error
     );
 
@@ -1346,134 +2009,55 @@ onSnapshot(
 
 
 /* =========================================================
-   FORCE SYNC THE 4 ADMIN SERVICES
+   INITIAL SYNC OF ORIGINAL SERVICES
 ========================================================= */
 
-async function syncFourAdminServices() {
+async function syncOriginalServices() {
 
   try {
 
-
-    console.log(
-      "🔄 Starting 4 services sync..."
-    );
-
-
-    /*
-      نستخدم النسخة الأصلية التي قرأناها
-      من بطاقات الأدمن عند بداية تحميل الصفحة.
-    */
-
     for (
       let index = 0;
-      index < 4;
+      index <
+      ORIGINAL_SERVICES.length;
       index++
     ) {
 
-
       const original =
-        ORIGINAL_ADMIN_SERVICES[
-          index
-        ];
-
-
-      if (!original) {
-
-        console.warn(
-          `Service card ${
-            index + 1
-          } not found.`
-        );
-
-        continue;
-
-      }
+        ORIGINAL_SERVICES[index];
 
 
       const id =
-        String(
-          index + 1
-        )
-        .padStart(
-          2,
-          "0"
+        String(index + 1)
+          .padStart(
+            2,
+            "0"
+          );
+
+
+      const existing =
+        services.find(
+          item =>
+            String(item.id) ===
+            id
         );
 
 
-      /*
-        إذا توجد تعديلات محفوظة محليًا
-        بنفس ID الصحيح نحتفظ فيها.
-      */
-
-      const local =
-        services[
-          index
-        ] ||
-        original;
-
-
-      const name =
-        local.name ||
-        local.title ||
-        original.name ||
-        `Service ${index + 1}`;
-
-
-      const service = {
-
-        ...original,
-        ...local,
-
-        id,
-
-        name,
-
-        title:
-          name,
-
-        number:
-          local.number ||
-          id,
-
-        order:
-          index + 1,
-
-        icon:
-          local.icon ||
-          original.icon ||
-          "✦",
-
-        kicker:
-          local.kicker ||
-          original.kicker ||
-          "Service",
-
-        description:
-          local.description ||
-          original.description ||
-          "",
-
-        image:
-          local.image ||
-          original.image ||
-          "",
-
-        visible:
-          local.visible !== false,
-
-        published:
-          local.visible !== false,
-
-        updated:
-          local.updated ||
-          new Date()
-            .toISOString()
-
-      };
-
-
-      services[index] =
-        service;
+      const service =
+        existing
+          ? {
+              ...original,
+              ...existing,
+              id,
+              order:
+                index + 1
+            }
+          : {
+              ...original,
+              id,
+              order:
+                index + 1
+            };
 
 
       await setDoc(
@@ -1493,32 +2077,20 @@ async function syncFourAdminServices() {
 
       );
 
-
-      console.info(
-        `✅ Service ${id} uploaded: ${name}`
-      );
-
     }
 
 
-    saveLocal();
-
-    drawServices();
-
-
     console.info(
-      "✅ All 4 admin services synced to Firestore."
+      "✅ Original services synced."
     );
 
 
   } catch (error) {
 
-
     console.error(
-      "❌ Four services sync failed:",
+      "❌ Original services sync error:",
       error
     );
-
 
   }
 
@@ -1529,17 +2101,12 @@ async function syncFourAdminServices() {
    START
 ========================================================= */
 
-drawServices();
-
 saveLocal();
 
+renderServices();
 
-/*
-  بعد تحميل صفحة الأدمن بـ1.5 ثانية
-  نرفع الأربع خدمات.
-*/
 
 setTimeout(
-  syncFourAdminServices,
-  1500
+  syncOriginalServices,
+  1200
 );
