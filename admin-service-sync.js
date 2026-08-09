@@ -8,8 +8,7 @@ import {
   collection,
   doc,
   onSnapshot,
-  setDoc,
-  getDocs
+  setDoc
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 
 
@@ -38,128 +37,201 @@ const db = getFirestore(app);
    SETTINGS
 ========================================================= */
 
-const SERVICES_KEY = "altariq_media_services_v1";
+const SERVICES_KEY =
+  "altariq_media_services_v1";
 
-const SERVICE_COLLECTION = "services";
+const SERVICES_COLLECTION =
+  "services";
 
 
 const cards = [
-  ...document.querySelectorAll("#services .service-card")
+  ...document.querySelectorAll(
+    "#services .service-card"
+  )
 ];
 
 
 /* =========================================================
-   READ SERVICES FROM ADMIN HTML
+   READ THE 4 ORIGINAL SERVICES FROM ADMIN HTML
 ========================================================= */
 
-function getInitialServices() {
+function readServicesFromAdminCards() {
 
-  return cards.map((card, index) => {
+  return cards.map(
+    (card, index) => {
 
-    const id = String(index + 1).padStart(2, "0");
-
-    const name =
-      card.querySelector("h3")
-        ?.textContent
-        .trim()
-      ||
-      `Service ${index + 1}`;
+      const id =
+        String(index + 1)
+          .padStart(2, "0");
 
 
-    return {
-
-      id,
-
-      order: index + 1,
-
-      number:
-        card.querySelector(".service-number")
+      const name =
+        card.querySelector("h3")
           ?.textContent
           .trim()
         ||
+        `Service ${index + 1}`;
+
+
+      return {
+
         id,
 
-      icon:
-        card.querySelector(".service-icon")
-          ?.textContent
-          .trim()
-        ||
-        "✦",
+        order:
+          index + 1,
 
-      kicker:
-        card.querySelector(".service-kicker")
-          ?.textContent
-          .trim()
-        ||
-        "Service",
+        number:
+          card.querySelector(
+            ".service-number"
+          )
+            ?.textContent
+            .trim()
+          ||
+          id,
 
-      name,
+        icon:
+          card.querySelector(
+            ".service-icon"
+          )
+            ?.textContent
+            .trim()
+          ||
+          "✦",
 
-      title: name,
+        kicker:
+          card.querySelector(
+            ".service-kicker"
+          )
+            ?.textContent
+            .trim()
+          ||
+          "Service",
 
-      description:
-        card.querySelector("p")
-          ?.textContent
-          .trim()
-        ||
-        "",
+        name,
 
-      image:
-        card.querySelector("img")
-          ?.src
-        ||
-        "",
+        title:
+          name,
 
-      visible: true,
+        description:
+          card.querySelector("p")
+            ?.textContent
+            .trim()
+          ||
+          "",
 
-      published: true,
+        image:
+          card.querySelector("img")
+            ?.src
+          ||
+          "",
 
-      updated:
-        new Date().toISOString()
+        visible:
+          true,
 
-    };
+        published:
+          true,
 
-  });
+        updated:
+          new Date()
+            .toISOString()
+
+      };
+
+    }
+  );
 
 }
 
 
+/*
+  نحفظ نسخة أصلية فور تحميل الصفحة.
+  مهم جدًا حتى لا تغير بيانات Firestore القديمة
+  محتوى الخدمات الأربع قبل عملية الرفع.
+*/
+
+const ORIGINAL_ADMIN_SERVICES =
+  readServicesFromAdminCards();
+
+
 /* =========================================================
-   LOCAL SERVICES
+   LOAD LOCAL DATA
 ========================================================= */
 
-let services = [];
+let savedServices = [];
 
 try {
 
-  const savedServices =
+  const parsed =
     JSON.parse(
       localStorage.getItem(
         SERVICES_KEY
-      ) || "null"
+      ) || "[]"
     );
 
   if (
-    Array.isArray(savedServices) &&
-    savedServices.length
+    Array.isArray(parsed)
   ) {
 
-    services =
-      savedServices;
-
-  } else {
-
-    services =
-      getInitialServices();
+    savedServices =
+      parsed;
 
   }
 
 } catch {
 
-  services =
-    getInitialServices();
+  savedServices = [];
 
 }
+
+
+/* =========================================================
+   MERGE ORIGINAL SERVICES WITH LOCAL SAVED EDITS
+========================================================= */
+
+let services =
+  ORIGINAL_ADMIN_SERVICES.map(
+    original => {
+
+      /*
+        نأخذ فقط الخدمات ذات IDs الصحيحة
+        01 / 02 / 03 / 04.
+
+        أي ID عشوائي قديم لن يسيطر
+        على الخدمات الأصلية.
+      */
+
+      const saved =
+        savedServices.find(
+          item =>
+            String(item.id) ===
+            String(original.id)
+        );
+
+
+      if (!saved) {
+
+        return {
+          ...original
+        };
+
+      }
+
+
+      return {
+
+        ...original,
+        ...saved,
+
+        id:
+          original.id,
+
+        order:
+          original.order
+
+      };
+
+    }
+  );
 
 
 /* =========================================================
@@ -170,7 +242,9 @@ function saveLocal() {
 
   localStorage.setItem(
     SERVICES_KEY,
-    JSON.stringify(services)
+    JSON.stringify(
+      services
+    )
   );
 
 
@@ -179,7 +253,8 @@ function saveLocal() {
     new CustomEvent(
       "altariq:services-updated",
       {
-        detail: services
+        detail:
+          services
       }
     )
 
@@ -189,28 +264,27 @@ function saveLocal() {
 
 
 /* =========================================================
-   DRAW SERVICES IN ADMIN
+   DRAW SERVICES INSIDE ADMIN
 ========================================================= */
 
 function drawServices() {
-
-  const defaultServices =
-    getInitialServices();
-
 
   cards.forEach(
     (card, index) => {
 
       const service =
-        services[index] ||
-        defaultServices[index];
+        services[index];
 
-      if (!service) return;
+      if (!service) {
+        return;
+      }
 
 
       card.dataset.serviceId =
         service.id;
 
+
+      /* NUMBER */
 
       const number =
         card.querySelector(
@@ -221,11 +295,12 @@ function drawServices() {
 
         number.textContent =
           service.number ||
-          String(index + 1)
-            .padStart(2, "0");
+          service.id;
 
       }
 
+
+      /* ICON */
 
       const icon =
         card.querySelector(
@@ -241,6 +316,8 @@ function drawServices() {
       }
 
 
+      /* KICKER */
+
       const kicker =
         card.querySelector(
           ".service-kicker"
@@ -254,6 +331,8 @@ function drawServices() {
 
       }
 
+
+      /* TITLE */
 
       const title =
         card.querySelector(
@@ -270,6 +349,8 @@ function drawServices() {
       }
 
 
+      /* DESCRIPTION */
+
       const description =
         card.querySelector(
           "p"
@@ -283,6 +364,8 @@ function drawServices() {
 
       }
 
+
+      /* IMAGE */
 
       const image =
         card.querySelector(
@@ -300,11 +383,15 @@ function drawServices() {
       }
 
 
+      /* VISIBILITY */
+
       card.style.display =
         service.visible === false
           ? "none"
           : "";
 
+
+      /* EDIT BUTTON */
 
       if (
         !card.querySelector(
@@ -357,130 +444,246 @@ function drawServices() {
    EDITOR CSS
 ========================================================= */
 
-const style =
+const editorStyle =
   document.createElement(
     "style"
   );
 
 
-style.textContent = `
+editorStyle.textContent = `
 
 .service-edit-chip{
   position:absolute;
   z-index:7;
   top:14px;
   right:14px;
-  border:1px solid rgba(255,255,255,.18);
-  background:rgba(2,11,24,.82);
+
+  border:
+    1px solid rgba(255,255,255,.18);
+
+  background:
+    rgba(2,11,24,.82);
+
   color:#fff;
+
   border-radius:999px;
-  padding:8px 12px;
+
+  padding:
+    8px 12px;
+
   font-size:11px;
+
   cursor:pointer;
-  backdrop-filter:blur(10px);
-  box-shadow:0 8px 25px rgba(0,0,0,.25);
+
+  backdrop-filter:
+    blur(10px);
+
+  box-shadow:
+    0 8px 25px rgba(0,0,0,.25);
 }
+
 
 .service-edit-chip:hover{
-  border-color:rgba(255,196,0,.55);
+  border-color:
+    rgba(255,196,0,.55);
 }
 
+
 #serviceEditorBackdrop{
+
   position:fixed;
+
   inset:0;
+
   z-index:10000;
+
   display:none;
+
   place-items:center;
-  background:rgba(0,5,13,.80);
-  backdrop-filter:blur(12px);
+
+  background:
+    rgba(0,5,13,.80);
+
+  backdrop-filter:
+    blur(12px);
+
   padding:18px;
 }
+
 
 #serviceEditorBackdrop.open{
   display:grid;
 }
 
+
 .service-editor{
-  width:min(760px,100%);
-  max-height:92vh;
+
+  width:
+    min(760px,100%);
+
+  max-height:
+    92vh;
+
   overflow:auto;
-  border-radius:26px;
-  padding:22px;
+
+  border-radius:
+    26px;
+
+  padding:
+    22px;
+
   background:
     linear-gradient(
       145deg,
       rgba(11,29,55,.98),
       rgba(4,13,28,.99)
     );
-  border:1px solid rgba(255,255,255,.12);
-  box-shadow:0 28px 90px rgba(0,0,0,.55);
+
+  border:
+    1px solid rgba(255,255,255,.12);
+
+  box-shadow:
+    0 28px 90px rgba(0,0,0,.55);
 }
+
 
 .service-editor h3{
-  margin:0 0 18px;
-  font-size:22px;
+
+  margin:
+    0 0 18px;
+
+  font-size:
+    22px;
 }
+
 
 .service-editor-grid{
+
   display:grid;
+
   grid-template-columns:
     1fr 1fr;
-  gap:13px;
+
+  gap:
+    13px;
 }
+
 
 .service-editor-grid .full{
-  grid-column:1/-1;
+
+  grid-column:
+    1 / -1;
 }
 
+
 .service-editor label{
+
   display:grid;
-  gap:7px;
-  font-size:11px;
+
+  gap:
+    7px;
+
+  font-size:
+    11px;
 }
+
 
 .service-editor input,
 .service-editor textarea{
-  width:100%;
-  box-sizing:border-box;
-  border:1px solid rgba(255,255,255,.12);
-  background:rgba(255,255,255,.055);
-  color:#fff;
-  border-radius:13px;
-  padding:11px 12px;
-  outline:none;
+
+  width:
+    100%;
+
+  box-sizing:
+    border-box;
+
+  border:
+    1px solid rgba(255,255,255,.12);
+
+  background:
+    rgba(255,255,255,.055);
+
+  color:
+    #fff;
+
+  border-radius:
+    13px;
+
+  padding:
+    11px 12px;
+
+  outline:
+    none;
 }
+
 
 .service-editor input:focus,
 .service-editor textarea:focus{
-  border-color:rgba(255,196,0,.55);
+
+  border-color:
+    rgba(255,196,0,.55);
 }
+
 
 .service-editor textarea{
-  min-height:100px;
-  resize:vertical;
+
+  min-height:
+    100px;
+
+  resize:
+    vertical;
 }
+
 
 .service-editor-actions{
+
   display:flex;
-  gap:10px;
-  justify-content:flex-end;
-  margin-top:18px;
+
+  gap:
+    10px;
+
+  justify-content:
+    flex-end;
+
+  margin-top:
+    18px;
 }
+
 
 .service-editor-preview{
-  width:100%;
-  max-height:280px;
-  object-fit:contain;
-  background:#071326;
-  border-radius:14px;
-  border:1px solid rgba(255,255,255,.1);
+
+  width:
+    100%;
+
+  max-height:
+    280px;
+
+  object-fit:
+    contain;
+
+  background:
+    #071326;
+
+  border-radius:
+    14px;
+
+  border:
+    1px solid rgba(255,255,255,.1);
 }
 
+
 .service-editor-help{
-  color:#ffcf52;
-  font-size:10px;
-  line-height:1.7;
+
+  color:
+    #ffcf52;
+
+  font-size:
+    10px;
+
+  line-height:
+    1.7;
 }
+
 
 @media(max-width:650px){
 
@@ -496,8 +699,9 @@ style.textContent = `
 
 `;
 
+
 document.head.appendChild(
-  style
+  editorStyle
 );
 
 
@@ -527,7 +731,9 @@ backdrop.innerHTML = `
   </h3>
 
 
-  <div class="service-editor-grid">
+  <div
+    class="service-editor-grid"
+  >
 
 
     <label>
@@ -571,7 +777,7 @@ backdrop.innerHTML = `
 
       <input
         id="seIcon"
-        maxlength="6"
+        maxlength="8"
       >
 
     </label>
@@ -598,9 +804,11 @@ backdrop.innerHTML = `
         placeholder="https://example.com/image.jpg"
       >
 
-      <small class="service-editor-help">
+      <small
+        class="service-editor-help"
+      >
 
-        ضع رابط صورة مباشر يبدأ بـ https://
+        استخدم رابط صورة مباشر يبدأ بـ https://
 
       </small>
 
@@ -633,7 +841,9 @@ backdrop.innerHTML = `
   </div>
 
 
-  <div class="service-editor-actions">
+  <div
+    class="service-editor-actions"
+  >
 
     <button
       type="button"
@@ -653,7 +863,6 @@ backdrop.innerHTML = `
 
   </div>
 
-
 </form>
 
 `;
@@ -665,7 +874,7 @@ document.body.appendChild(
 
 
 /* =========================================================
-   EDITOR HELPERS
+   EDITOR VARIABLES
 ========================================================= */
 
 const q =
@@ -675,7 +884,8 @@ const q =
     );
 
 
-let editIndex = -1;
+let editIndex =
+  -1;
 
 
 /* =========================================================
@@ -694,7 +904,9 @@ function openServiceEditor(
     services[index];
 
 
-  if (!service) return;
+  if (!service) {
+    return;
+  }
 
 
   q("seName").value =
@@ -710,6 +922,7 @@ function openServiceEditor(
 
   q("seNumber").value =
     service.number ||
+    service.id ||
     "";
 
 
@@ -732,7 +945,9 @@ function openServiceEditor(
     service.visible !== false;
 
 
-  if (service.image) {
+  if (
+    service.image
+  ) {
 
     q("sePreview").src =
       service.image;
@@ -773,7 +988,8 @@ backdrop.addEventListener(
   event => {
 
     if (
-      event.target === backdrop
+      event.target ===
+      backdrop
     ) {
 
       backdrop.classList.remove(
@@ -795,16 +1011,16 @@ q("seImageUrl")
     "input",
     event => {
 
-      const url =
+      const imageUrl =
         event.target
           .value
           .trim();
 
 
-      if (url) {
+      if (imageUrl) {
 
         q("sePreview").src =
-          url;
+          imageUrl;
 
       } else {
 
@@ -838,8 +1054,10 @@ q("serviceEditorForm")
       }
 
 
-      const oldService =
-        services[editIndex];
+      const current =
+        services[
+          editIndex
+        ];
 
 
       const submitButton =
@@ -857,21 +1075,12 @@ q("serviceEditorForm")
       try {
 
 
-        const name =
-          q("seName")
-            .value
-            .trim();
-
-
-        const image =
-          q("seImageUrl")
-            .value
-            .trim();
-
+        /*
+          IDs ثابتة حسب ترتيب البطاقة.
+        */
 
         const id =
           String(
-            oldService.id ||
             editIndex + 1
           )
           .padStart(
@@ -880,9 +1089,15 @@ q("serviceEditorForm")
           );
 
 
+        const name =
+          q("seName")
+            .value
+            .trim();
+
+
         const service = {
 
-          ...oldService,
+          ...current,
 
           id,
 
@@ -915,7 +1130,13 @@ q("serviceEditorForm")
               .value
               .trim(),
 
-          image,
+          image:
+            q("seImageUrl")
+              .value
+              .trim(),
+
+          order:
+            editIndex + 1,
 
           visible:
             q("seVisible")
@@ -924,13 +1145,6 @@ q("serviceEditorForm")
           published:
             q("seVisible")
               .checked,
-
-          order:
-            Number(
-              oldService.order
-            )
-            ||
-            editIndex + 1,
 
           updated:
             new Date()
@@ -954,14 +1168,15 @@ q("serviceEditorForm")
 
           doc(
             db,
-            SERVICE_COLLECTION,
+            SERVICES_COLLECTION,
             id
           ),
 
           service,
 
           {
-            merge: false
+            merge:
+              false
           }
 
         );
@@ -973,7 +1188,7 @@ q("serviceEditorForm")
 
 
         console.info(
-          "✅ Service saved to Firestore:",
+          `✅ Service ${id} saved to Firestore:`,
           name
         );
 
@@ -994,13 +1209,13 @@ q("serviceEditorForm")
 
 
         console.error(
-          "❌ Service save error:",
+          "❌ Service save failed:",
           error
         );
 
 
         alert(
-          "حدث خطأ أثناء نشر الخدمة على Firebase."
+          "حدث خطأ أثناء نشر الخدمة."
         );
 
 
@@ -1029,7 +1244,7 @@ onSnapshot(
 
   collection(
     db,
-    SERVICE_COLLECTION
+    SERVICES_COLLECTION
   ),
 
   snapshot => {
@@ -1044,101 +1259,84 @@ onSnapshot(
     }
 
 
-    const remoteServices =
-      snapshot.docs
+    /*
+      نقرأ فقط IDs الصحيحة:
+      01 / 02 / 03 / 04
 
-        .map(
-          documentSnapshot => ({
+      الـDocument العشوائي القديم
+      نتجاهله بالكامل.
+    */
 
-            id:
-              documentSnapshot.id,
+    snapshot.docs.forEach(
+      documentSnapshot => {
 
-            ...documentSnapshot.data()
-
-          })
-        )
-
-        .sort(
-          (a, b) =>
-            (Number(a.order) || 99)
-            -
-            (Number(b.order) || 99)
-        );
+        const id =
+          String(
+            documentSnapshot.id
+          );
 
 
-    if (
-      remoteServices.length
-    ) {
+        const allowedIds =
+          [
+            "01",
+            "02",
+            "03",
+            "04"
+          ];
 
 
-      /*
-        إذا Firestore فيه أقل من الخدمات الموجودة
-        محليًا لا نستبدل القائمة كاملة مباشرة.
-      */
+        if (
+          !allowedIds.includes(
+            id
+          )
+        ) {
 
-      const merged =
-        [...services];
-
-
-      remoteServices.forEach(
-        remoteService => {
-
-          const index =
-            merged.findIndex(
-              localService =>
-                String(
-                  localService.id
-                )
-                ===
-                String(
-                  remoteService.id
-                )
-            );
-
-
-          if (
-            index >= 0
-          ) {
-
-            merged[index] =
-              {
-                ...merged[index],
-                ...remoteService
-              };
-
-          } else {
-
-            merged.push(
-              remoteService
-            );
-
-          }
+          return;
 
         }
-      );
 
 
-      services =
-        merged.sort(
-          (a, b) =>
-            (Number(a.order) || 99)
-            -
-            (Number(b.order) || 99)
-        );
+        const index =
+          Number(id) - 1;
 
 
-      saveLocal();
+        if (
+          index < 0 ||
+          index >= services.length
+        ) {
 
-      drawServices();
+          return;
 
-    }
+        }
+
+
+        services[index] = {
+
+          ...services[index],
+
+          ...documentSnapshot.data(),
+
+          id,
+
+          order:
+            index + 1
+
+        };
+
+      }
+    );
+
+
+    saveLocal();
+
+    drawServices();
 
   },
 
   error => {
 
     console.error(
-      "❌ Services listener error:",
+      "❌ Services listener failed:",
       error
     );
 
@@ -1148,66 +1346,52 @@ onSnapshot(
 
 
 /* =========================================================
-   AUTO-SEED SERVICES TO FIRESTORE
+   FORCE SYNC THE 4 ADMIN SERVICES
 ========================================================= */
 
-async function seedServicesToFirestore() {
+async function syncFourAdminServices() {
 
   try {
 
 
-    const snapshot =
-      await getDocs(
-
-        collection(
-          db,
-          SERVICE_COLLECTION
-        )
-
-      );
-
-
-    const existingIds =
-      new Set(
-
-        snapshot.docs.map(
-          documentSnapshot =>
-            String(
-              documentSnapshot.id
-            )
-        )
-
-      );
+    console.log(
+      "🔄 Starting 4 services sync..."
+    );
 
 
     /*
-      نقرأ الخدمات الحالية الموجودة في صفحة الأدمن
-      ونرفع الخدمات الناقصة فقط.
+      نستخدم النسخة الأصلية التي قرأناها
+      من بطاقات الأدمن عند بداية تحميل الصفحة.
     */
-
-    const adminServices =
-      services.length
-        ? services
-        : getInitialServices();
-
-
-    let addedCount = 0;
-
 
     for (
       let index = 0;
-      index < adminServices.length;
+      index < 4;
       index++
     ) {
 
 
-      const oldService =
-        adminServices[index];
+      const original =
+        ORIGINAL_ADMIN_SERVICES[
+          index
+        ];
+
+
+      if (!original) {
+
+        console.warn(
+          `Service card ${
+            index + 1
+          } not found.`
+        );
+
+        continue;
+
+      }
 
 
       const id =
         String(
-          oldService.id ||
           index + 1
         )
         .padStart(
@@ -1217,29 +1401,28 @@ async function seedServicesToFirestore() {
 
 
       /*
-        إذا الخدمة موجودة لا نحذف تعديلاتها.
+        إذا توجد تعديلات محفوظة محليًا
+        بنفس ID الصحيح نحتفظ فيها.
       */
 
-      if (
-        existingIds.has(
-          id
-        )
-      ) {
-
-        continue;
-
-      }
+      const local =
+        services[
+          index
+        ] ||
+        original;
 
 
       const name =
-        oldService.name ||
-        oldService.title ||
+        local.name ||
+        local.title ||
+        original.name ||
         `Service ${index + 1}`;
 
 
       const service = {
 
-        ...oldService,
+        ...original,
+        ...local,
 
         id,
 
@@ -1248,97 +1431,91 @@ async function seedServicesToFirestore() {
         title:
           name,
 
-        order:
-          Number(
-            oldService.order
-          )
-          ||
-          index + 1,
-
         number:
-          oldService.number
-          ||
+          local.number ||
           id,
 
+        order:
+          index + 1,
+
         icon:
-          oldService.icon
-          ||
+          local.icon ||
+          original.icon ||
           "✦",
 
         kicker:
-          oldService.kicker
-          ||
+          local.kicker ||
+          original.kicker ||
           "Service",
 
         description:
-          oldService.description
-          ||
+          local.description ||
+          original.description ||
           "",
 
         image:
-          oldService.image
-          ||
+          local.image ||
+          original.image ||
           "",
 
         visible:
-          oldService.visible !== false,
+          local.visible !== false,
 
         published:
-          oldService.visible !== false,
+          local.visible !== false,
 
         updated:
-          oldService.updated
-          ||
+          local.updated ||
           new Date()
             .toISOString()
 
       };
 
 
+      services[index] =
+        service;
+
+
       await setDoc(
 
         doc(
           db,
-          SERVICE_COLLECTION,
+          SERVICES_COLLECTION,
           id
         ),
 
         service,
 
         {
-          merge: true
+          merge:
+            true
         }
 
       );
 
 
-      addedCount++;
-
-    }
-
-
-    if (
-      addedCount > 0
-    ) {
-
       console.info(
-        `✅ ${addedCount} services uploaded to Firestore.`
-      );
-
-    } else {
-
-      console.info(
-        "✅ All services already exist in Firestore."
+        `✅ Service ${id} uploaded: ${name}`
       );
 
     }
+
+
+    saveLocal();
+
+    drawServices();
+
+
+    console.info(
+      "✅ All 4 admin services synced to Firestore."
+    );
 
 
   } catch (error) {
 
 
     console.error(
-      "❌ Failed to upload admin services:",
+      "❌ Four services sync failed:",
       error
     );
 
@@ -1357,7 +1534,12 @@ drawServices();
 saveLocal();
 
 
+/*
+  بعد تحميل صفحة الأدمن بـ1.5 ثانية
+  نرفع الأربع خدمات.
+*/
+
 setTimeout(
-  seedServicesToFirestore,
+  syncFourAdminServices,
   1500
 );
