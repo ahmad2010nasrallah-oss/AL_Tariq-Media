@@ -559,7 +559,29 @@
       .auth-language-btn .lang-name{display:inline}
     }
 
-  </style>
+  
+    /* ===== Website Analytics ===== */
+    .analytics-grid-custom{align-items:stretch}
+    .wa-bars{display:grid;gap:16px;margin-top:12px}
+    .wa-bar-row{display:grid;gap:7px}
+    .wa-bar-label{display:flex;justify-content:space-between;gap:12px;font-size:13px;color:var(--ink)}
+    .wa-bar-track{height:10px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden}
+    .wa-bar-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--brand-blue-2),var(--brand-yellow));min-width:2px}
+    .wa-insight{margin-top:18px;padding:14px 16px;border-radius:15px;background:rgba(255,196,0,.07);border:1px solid rgba(255,196,0,.18);line-height:1.8}
+    .wa-list{display:grid;gap:10px;margin-top:8px}
+    .wa-list-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 12px;border-radius:14px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07)}
+    .wa-list-row .wa-main{display:grid;gap:3px;min-width:0}
+    .wa-list-row b{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .wa-list-row small{color:var(--muted);font-size:11px}
+    .wa-count{min-width:42px;text-align:center;border-radius:999px;padding:6px 9px;background:rgba(255,196,0,.12);color:var(--brand-yellow);font-weight:900}
+    .wa-empty{padding:22px;text-align:center;color:var(--muted);border:1px dashed rgba(255,255,255,.1);border-radius:16px}
+    .wa-daily-chart{display:flex;align-items:end;gap:8px;height:220px;padding:18px 4px 0;overflow-x:auto}
+    .wa-day{min-width:34px;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:6px}
+    .wa-day-bar{width:22px;min-height:3px;border-radius:8px 8px 3px 3px;background:linear-gradient(180deg,var(--brand-yellow),var(--brand-blue-2));box-shadow:0 8px 18px rgba(255,196,0,.12)}
+    .wa-day small{font-size:9px;color:var(--muted);white-space:nowrap}
+    .wa-day b{font-size:9px;color:var(--ink)}
+
+</style>
 </head>
 <body>
 
@@ -604,6 +626,10 @@
         <button class="nav-btn active" data-page="dashboard">
           <span class="nav-icon">⌂</span>
           <span><b>Dashboard</b><br><small>لوحة التحكم</small></span>
+        </button>
+        <button class="nav-btn" data-page="analytics">
+          <span class="nav-icon">⌁</span>
+          <span><b>Website Activity</b><br><small>نشاط الويب سايت</small></span>
         </button>
         <button class="nav-btn" data-page="works">
           <span class="nav-icon">▦</span>
@@ -694,13 +720,89 @@
           <article class="panel glass">
             <div class="panel-head">
               <div><h3>Recent Activity</h3><span>آخر التعديلات على المشاريع</span></div>
-            
+              <button class="secondary-btn" data-go="works">View all</button>
             </div>
             <div class="activity" id="activityList"></div>
           </article>
 
-         
+          <article class="panel glass">
+            <div class="panel-head">
+              <div><h3>Service Performance</h3><span>Business focus overview</span></div>
+            </div>
+            <div class="service-bars">
+              <div><div class="bar-label"><span>Social Media Management</span><b>92%</b></div><div class="bar"><i style="width:92%"></i></div></div>
+              <div><div class="bar-label"><span>Photography & Production</span><b>84%</b></div><div class="bar"><i style="width:84%"></i></div></div>
+              <div><div class="bar-label"><span>Video Editing</span><b>78%</b></div><div class="bar"><i style="width:78%"></i></div></div>
+              <div><div class="bar-label"><span>Web Design</span><b>88%</b></div><div class="bar"><i style="width:88%"></i></div></div>
+            </div>
+          </article>
         </div>
+      </section>
+
+
+      <section class="page" id="analytics">
+        <div class="page-head">
+          <div>
+            <h2>نشاط <span style="color:var(--brand-yellow)">الويب سايت</span></h2>
+            <p>إحصائيات حقيقية لنشاط الزوار والتفاعل مع الأعمال والخدمات وروابط التواصل.</p>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <select class="input" id="analyticsPeriod" style="min-width:150px">
+              <option value="7">آخر 7 أيام</option>
+              <option value="30" selected>آخر 30 يوم</option>
+              <option value="90">آخر 90 يوم</option>
+              <option value="all">كل الوقت</option>
+            </select>
+            <button class="secondary-btn" type="button" id="analyticsRefresh">↻ تحديث</button>
+          </div>
+        </div>
+
+        <div class="stats" id="websiteAnalyticsStats">
+          <article class="stat glass"><span>الزوار الفريدون</span><b id="waUniqueVisitors">0</b><small>أجهزة زارت الموقع</small></article>
+          <article class="stat glass"><span>مشاهدات الصفحات</span><b id="waPageViews">0</b><small>إجمالي فتح الصفحات</small></article>
+          <article class="stat glass"><span>ضغطات التواصل</span><b id="waContactClicks">0</b><small>واتساب / هاتف / بريد</small></article>
+          <article class="stat glass"><span>زيارات عرض الأعمال</span><b id="waPortfolioViews">0</b><small>اهتمام بالـ Portfolio</small></article>
+          <article class="stat glass"><span>ضغطات روابط Drive</span><b id="waDriveClicks">0</b><small>فتح ملفات ومشاريع Drive</small></article>
+          <article class="stat glass"><span>فتح المشاريع</span><b id="waProjectOpens">0</b><small>مشاريع تم فتحها</small></article>
+        </div>
+
+        <div class="dashboard-grid analytics-grid-custom">
+          <article class="panel glass">
+            <div class="panel-head">
+              <div><h3>اهتمام الزوار</h3><span>ما الذي يجذب الزوار أكثر؟</span></div>
+            </div>
+            <div id="waInterestBars" class="wa-bars"></div>
+            <div class="wa-insight" id="waTopInsight">لا توجد بيانات كافية بعد.</div>
+          </article>
+
+          <article class="panel glass">
+            <div class="panel-head">
+              <div><h3>أكثر المشاريع جذبًا</h3><span>حسب الفتح وروابط Drive</span></div>
+            </div>
+            <div id="waTopProjects" class="wa-list"></div>
+          </article>
+
+          <article class="panel glass">
+            <div class="panel-head">
+              <div><h3>أكثر الخدمات اهتمامًا</h3><span>حسب ضغطات بطاقات الخدمات</span></div>
+            </div>
+            <div id="waTopServices" class="wa-list"></div>
+          </article>
+
+          <article class="panel glass">
+            <div class="panel-head">
+              <div><h3>آخر نشاطات الموقع</h3><span>آخر الأحداث المسجلة</span></div>
+            </div>
+            <div id="waRecentEvents" class="wa-list"></div>
+          </article>
+        </div>
+
+        <article class="panel glass" style="margin-top:18px">
+          <div class="panel-head">
+            <div><h3>توزيع النشاط اليومي</h3><span>عدد الأحداث المسجلة يوميًا</span></div>
+          </div>
+          <div id="waDailyChart" class="wa-daily-chart"></div>
+        </article>
       </section>
 
       <section class="page" id="works">
@@ -1406,7 +1508,12 @@
     function updatePageTitle(pageId){
       const keys={dashboard:"pageDashboard",works:"pageWorks",services:"pageServices",media:"pageMedia","website-settings":"pageWebsiteSettings",settings:"pageSettings"};
       const title=document.getElementById("pageTitle");
-      if(title) title.textContent=uiText(keys[pageId]||"pageDashboard");
+      if(!title) return;
+      if(pageId === "analytics"){
+        title.textContent = currentLang === "ar" ? "نشاط الويب سايت" : "Website Activity";
+        return;
+      }
+      title.textContent=uiText(keys[pageId]||"pageDashboard");
     }
 
     captureStaticTranslations();
@@ -2953,6 +3060,215 @@
   console.info("✅ Service manager ready — Add + Edit + device upload + Cloudinary + Firestore.");
 </script>
 <!-- ALTARIQ_ADD_SERVICE_MODULE_END -->
+
+
+<!-- AL_TARIQ_WEBSITE_ANALYTICS_ADMIN_START -->
+<script type="module">
+  import { initializeApp as analyticsInitApp, getApps as analyticsGetApps } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+  import { getFirestore as analyticsGetFirestore, collection as analyticsCollection, onSnapshot as analyticsOnSnapshot } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+
+  const analyticsFirebaseConfig = {
+    apiKey:"AIzaSyAyUMzv-Zw_XtNe4OKJPg2FrwyLSJh5i9A",
+    authDomain:"al-tariq-media.firebaseapp.com",
+    projectId:"al-tariq-media",
+    storageBucket:"al-tariq-media.firebasestorage.app",
+    messagingSenderId:"616239800441",
+    appId:"1:616239800441:web:53edc96e1cc872702cb4a8",
+    measurementId:"G-42KJKNDJDF"
+  };
+
+  const analyticsApp = analyticsGetApps().length ? analyticsGetApps()[0] : analyticsInitApp(analyticsFirebaseConfig);
+  const analyticsDb = analyticsGetFirestore(analyticsApp);
+
+  const analyticsState = { events:[], unsubscribe:null };
+
+  const eventLabels = {
+    page_view:"مشاهدة صفحة",
+    contact_click:"ضغط تواصل",
+    drive_click:"فتح رابط Drive",
+    portfolio_view:"زيارة عرض الأعمال",
+    project_open:"فتح مشروع",
+    service_click:"ضغط خدمة"
+  };
+
+  function eventDate(event){
+    const value = event.created_at;
+    if(value?.toDate) return value.toDate();
+    if(value?.seconds) return new Date(value.seconds * 1000);
+    const parsed = new Date(value || event.createdAt || 0);
+    return Number.isNaN(parsed.getTime()) ? new Date(0) : parsed;
+  }
+
+  function filteredEvents(){
+    const select = document.getElementById("analyticsPeriod");
+    const period = select?.value || "30";
+    if(period === "all") return [...analyticsState.events];
+    const days = Number(period) || 30;
+    const since = Date.now() - days * 86400000;
+    return analyticsState.events.filter(e => eventDate(e).getTime() >= since);
+  }
+
+  function countBy(items, keyFn){
+    const map = new Map();
+    items.forEach(item=>{
+      const key = String(keyFn(item) || "غير معروف");
+      map.set(key,(map.get(key)||0)+1);
+    });
+    return [...map.entries()].sort((a,b)=>b[1]-a[1]);
+  }
+
+  function esc(value=""){
+    return String(value).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
+  }
+
+  function setText(id,value){
+    const el=document.getElementById(id);
+    if(el) el.textContent=String(value);
+  }
+
+  function renderInterest(events){
+    const interest = {
+      "عرض الأعمال": events.filter(e => e.event_type==="portfolio_view" || e.event_type==="project_open").length,
+      "روابط Drive": events.filter(e => e.event_type==="drive_click").length,
+      "الخدمات": events.filter(e => e.event_type==="service_click").length,
+      "التواصل": events.filter(e => e.event_type==="contact_click").length,
+      "الصفحة الرئيسية": events.filter(e => e.event_type==="page_view" && (e.page==="home" || !e.page)).length
+    };
+
+    const sorted = Object.entries(interest).sort((a,b)=>b[1]-a[1]);
+    const total = sorted.reduce((sum,[,v])=>sum+v,0);
+    const box = document.getElementById("waInterestBars");
+    const insight = document.getElementById("waTopInsight");
+    if(!box || !insight) return;
+
+    if(total===0){
+      box.innerHTML='<div class="wa-empty">لا توجد بيانات كافية بعد. بعد تركيب كود التتبع ستظهر الإحصائيات هنا.</div>';
+      insight.textContent="لا توجد بيانات كافية بعد.";
+      return;
+    }
+
+    box.innerHTML = sorted.map(([name,value])=>{
+      const pct = Math.round((value/total)*100);
+      return `<div class="wa-bar-row">
+        <div class="wa-bar-label"><span>${esc(name)}</span><b>${pct}% · ${value}</b></div>
+        <div class="wa-bar-track"><div class="wa-bar-fill" style="width:${pct}%"></div></div>
+      </div>`;
+    }).join("");
+
+    const [topName,topValue] = sorted[0];
+    const topPct = Math.round((topValue/total)*100);
+    insight.innerHTML = `أعلى اهتمام حاليًا: <b>${esc(topName)}</b> بنسبة تقريبية <b>${topPct}%</b> من التفاعلات القابلة للقياس في الفترة المحددة.`;
+  }
+
+  function renderRankedList(id, rows, emptyText){
+    const box=document.getElementById(id);
+    if(!box) return;
+    if(!rows.length){
+      box.innerHTML=`<div class="wa-empty">${esc(emptyText)}</div>`;
+      return;
+    }
+    box.innerHTML=rows.slice(0,8).map(([name,count])=>`
+      <div class="wa-list-row">
+        <div class="wa-main"><b>${esc(name)}</b><small>تفاعلات مسجلة</small></div>
+        <span class="wa-count">${count}</span>
+      </div>`).join("");
+  }
+
+  function renderRecent(events){
+    const box=document.getElementById("waRecentEvents");
+    if(!box) return;
+    const rows=[...events].sort((a,b)=>eventDate(b)-eventDate(a)).slice(0,10);
+    if(!rows.length){
+      box.innerHTML='<div class="wa-empty">لا يوجد نشاط مسجل حتى الآن.</div>';
+      return;
+    }
+    box.innerHTML=rows.map(e=>{
+      const label=eventLabels[e.event_type] || e.event_type || "نشاط";
+      const detail=e.project_name || e.service_name || e.page || e.target || "";
+      const date=eventDate(e);
+      return `<div class="wa-list-row">
+        <div class="wa-main"><b>${esc(label)}</b><small>${esc(detail)} · ${date.toLocaleString("ar-JO")}</small></div>
+      </div>`;
+    }).join("");
+  }
+
+  function renderDaily(events){
+    const box=document.getElementById("waDailyChart");
+    if(!box) return;
+    const map=new Map();
+    events.forEach(e=>{
+      const d=eventDate(e);
+      if(d.getTime()===0) return;
+      const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+      map.set(key,(map.get(key)||0)+1);
+    });
+    const rows=[...map.entries()].sort((a,b)=>a[0].localeCompare(b[0])).slice(-30);
+    if(!rows.length){
+      box.innerHTML='<div class="wa-empty" style="width:100%">لا توجد بيانات يومية بعد.</div>';
+      return;
+    }
+    const max=Math.max(...rows.map(r=>r[1]),1);
+    box.innerHTML=rows.map(([day,count])=>{
+      const pct=Math.max(4,Math.round((count/max)*100));
+      const label=day.slice(5);
+      return `<div class="wa-day"><b>${count}</b><div class="wa-day-bar" style="height:${pct}%"></div><small>${label}</small></div>`;
+    }).join("");
+  }
+
+  function renderAnalytics(){
+    const events=filteredEvents();
+    const visitors=new Set(events.map(e=>e.visitor_id).filter(Boolean));
+
+    setText("waUniqueVisitors",visitors.size);
+    setText("waPageViews",events.filter(e=>e.event_type==="page_view").length);
+    setText("waContactClicks",events.filter(e=>e.event_type==="contact_click").length);
+    setText("waPortfolioViews",events.filter(e=>e.event_type==="portfolio_view" || (e.event_type==="page_view" && e.page==="portfolio")).length);
+    setText("waDriveClicks",events.filter(e=>e.event_type==="drive_click").length);
+    setText("waProjectOpens",events.filter(e=>e.event_type==="project_open").length);
+
+    renderInterest(events);
+
+    const projectRows=countBy(
+      events.filter(e=>e.event_type==="project_open" || e.event_type==="drive_click"),
+      e=>e.project_name || e.project_id || "مشروع غير محدد"
+    );
+    renderRankedList("waTopProjects",projectRows,"لم يتم فتح مشاريع بعد.");
+
+    const serviceRows=countBy(
+      events.filter(e=>e.event_type==="service_click"),
+      e=>e.service_name || e.service_id || "خدمة غير محددة"
+    );
+    renderRankedList("waTopServices",serviceRows,"لم يتم تسجيل ضغطات على الخدمات بعد.");
+
+    renderRecent(events);
+    renderDaily(events);
+  }
+
+  function subscribe(){
+    if(typeof analyticsState.unsubscribe==="function") analyticsState.unsubscribe();
+    analyticsState.unsubscribe=analyticsOnSnapshot(
+      analyticsCollection(analyticsDb,"site_events"),
+      snapshot=>{
+        analyticsState.events=snapshot.docs.map(d=>({id:d.id,...d.data()}));
+        renderAnalytics();
+        console.info(`📊 Website analytics loaded: ${analyticsState.events.length} event(s).`);
+      },
+      error=>{
+        console.error("Website analytics read error:",error);
+        const hint=document.getElementById("waTopInsight");
+        if(hint) hint.textContent="تعذر قراءة site_events. راجع Firestore Rules.";
+      }
+    );
+  }
+
+  document.getElementById("analyticsPeriod")?.addEventListener("change",renderAnalytics);
+  document.getElementById("analyticsRefresh")?.addEventListener("click",renderAnalytics);
+  window.addEventListener("altariq:analytics-refresh",renderAnalytics);
+
+  subscribe();
+  console.info("✅ Admin Website Activity analytics ready.");
+</script>
+<!-- AL_TARIQ_WEBSITE_ANALYTICS_ADMIN_END -->
 
 </body>
 </html>
