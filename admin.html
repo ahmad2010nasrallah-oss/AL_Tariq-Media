@@ -2394,6 +2394,18 @@
   #altariqServiceModal .asm-status{
     margin-top:12px;font-size:12px;line-height:1.8;color:#cbd8eb;min-height:20px
   }
+  .altariq-service-edit-btn{
+    position:absolute;top:14px;right:14px;z-index:20;
+    border:1px solid rgba(255,255,255,.16);
+    background:rgba(4,13,28,.82);color:#fff;
+    border-radius:999px;padding:9px 13px;font-size:11px;font-weight:800;
+    cursor:pointer;backdrop-filter:blur(10px);
+    box-shadow:0 10px 28px rgba(0,0,0,.28);
+  }
+  .altariq-service-edit-btn:hover{
+    border-color:rgba(255,196,0,.55);
+    color:#ffc400;
+  }
   @media(max-width:680px){
     #altariqServiceModal .asm-grid{grid-template-columns:1fr}
     #altariqServiceModal .asm-full{grid-column:auto}
@@ -2435,7 +2447,7 @@
       </label>
 
       <label class="asm-full asm-upload">
-        صورة الخدمة من جهازك
+        صورة الخدمة من جهازك <small style="font-weight:400;color:#9fb0ca">(اختيارية عند التعديل)</small>
         <input id="altariqServiceImage" type="file" accept="image/jpeg,image/png,image/webp,image/gif">
         <small>JPG / PNG / WEBP / GIF — الحد الأقصى 10MB</small>
         <img id="altariqServicePreview" class="asm-preview" alt="معاينة صورة الخدمة">
@@ -2488,6 +2500,9 @@
   const submit = document.getElementById("altariqServiceSubmit");
 
   let previewObjectUrl = "";
+  let editServiceId = null;
+  let editServiceOrder = null;
+  let editExistingImage = "";
 
   function setStatus(message, isError=false){
     status.textContent = message || "";
@@ -2513,7 +2528,10 @@
     const description = String(service.description || "").slice(0,500);
 
     return `
-      <article class="service-card glass" data-dynamic-service="1" data-service-id="${escapeHtml(service.id || "")}">
+      <article class="service-card glass" data-dynamic-service="1"
+               data-service-id="${escapeHtml(service.id || "")}"
+               data-service-order="${escapeHtml(service.order || service.number || "")}">
+        <button type="button" class="altariq-service-edit-btn">✎ تعديل الخدمة</button>
         <div class="service-visual">
           ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(name)}" loading="lazy" referrerpolicy="no-referrer">` : ""}
           <span class="service-number">${escapeHtml(number)}</span>
@@ -2528,27 +2546,116 @@
     `;
   }
 
+  function updateStaticCard(card, service){
+    if(!card || !service) return;
+
+    card.dataset.serviceId = String(service.id || "");
+    card.dataset.serviceOrder = String(service.order || service.number || "");
+
+    let editBtn = card.querySelector(".altariq-service-edit-btn");
+    if(!editBtn){
+      editBtn = document.createElement("button");
+      editBtn.type = "button";
+      editBtn.className = "altariq-service-edit-btn";
+      editBtn.textContent = "✎ تعديل الخدمة";
+      card.prepend(editBtn);
+    }
+
+    const image = String(service.image || service.imageUrl || service.publicImage || "").trim();
+    const visual = card.querySelector(".service-visual");
+    let img = visual?.querySelector("img");
+
+    if(image){
+      if(!img && visual){
+        img = document.createElement("img");
+        img.loading = "lazy";
+        img.referrerPolicy = "no-referrer";
+        visual.prepend(img);
+      }
+      if(img){
+        img.src = image;
+        img.alt = service.name || service.title || "خدمة";
+      }
+    }
+
+    const numberEl = card.querySelector(".service-number");
+    if(numberEl) numberEl.textContent = String(service.number || service.order || "").padStart(2,"0");
+
+    const iconEl = card.querySelector(".service-icon");
+    if(iconEl) iconEl.textContent = service.icon || "✦";
+
+    const kickerEl = card.querySelector(".service-kicker");
+    if(kickerEl) kickerEl.textContent = service.kicker || "Service";
+
+    const nameEl = card.querySelector("h3");
+    if(nameEl) nameEl.textContent = service.name || service.title || "خدمة";
+
+    const descEl = card.querySelector("p");
+    if(descEl) descEl.textContent = String(service.description || "").slice(0,500);
+
+    card.style.display = service.visible === false ? "none" : "";
+  }
+
+  async function getAllServices(){
+    const snap = await getDocs(collection(db,"services"));
+    return snap.docs
+      .map(d=>({id:d.id,...d.data()}))
+      .sort((a,b)=>(Number(a.order || a.number)||99)-(Number(b.order || b.number)||99));
+  }
+
   async function refreshAddedServices(){
     const grid = document.getElementById("adminServicesGrid");
     if(!grid) return;
 
-    // Remove only cards created dynamically by this module.
-    grid.querySelectorAll('[data-dynamic-service="1"]').forEach(el=>el.remove());
-
     try{
-      const snap = await getDocs(collection(db,"services"));
-      const items = snap.docs
-        .map(d=>({id:d.id,...d.data()}))
-        .filter(s => (s.visible !== false) && (Number(s.order || s.number || 0) > 4))
-        .sort((a,b)=>(Number(a.order)||99)-(Number(b.order)||99));
+      const items = await getAllServices();
 
-      items.forEach(service=>{
-        grid.insertAdjacentHTML("beforeend", serviceCardMarkup(service));
+      // Keep the original four cards and update their content from Firestore.
+      const staticCards = [...grid.querySelectorAll(".service-card:not([data-dynamic-service='1'])")];
+      const firstFour = items.filter(s => Number(s.order || s.number || 0) <= 4);
+
+      staticCards.forEach((card,index)=>{
+        const service = firstFour[index];
+        if(service) updateStaticCard(card,service);
+        else {
+          // Even if Firestore is missing one of the original services, keep edit button visible.
+          let editBtn = card.querySelector(".altariq-service-edit-btn");
+          if(!editBtn){
+            editBtn = document.createElement("button");
+            editBtn.type = "button";
+            editBtn.className = "altariq-service-edit-btn";
+            editBtn.textContent = "✎ تعديل الخدمة";
+            card.prepend(editBtn);
+          }
+          card.dataset.serviceOrder = String(index + 1);
+        }
       });
 
-      console.info(`✅ ${items.length} added service(s) rendered in admin.`);
+      // Rebuild services after the original four.
+      grid.querySelectorAll('[data-dynamic-service="1"]').forEach(el=>el.remove());
+
+      items
+        .filter(s => Number(s.order || s.number || 0) > 4)
+        .forEach(service=>{
+          grid.insertAdjacentHTML("beforeend", serviceCardMarkup(service));
+        });
+
+      console.info(`✅ ${items.length} service(s) rendered with edit buttons.`);
     }catch(error){
-      console.warn("Could not refresh added services:", error);
+      console.warn("Could not refresh services:", error);
+
+      // Fallback: at least add edit buttons to the four static cards.
+      [...grid.querySelectorAll(".service-card")].forEach((card,index)=>{
+        let editBtn = card.querySelector(".altariq-service-edit-btn");
+        if(!editBtn){
+          editBtn = document.createElement("button");
+          editBtn.type = "button";
+          editBtn.className = "altariq-service-edit-btn";
+          editBtn.textContent = "✎ تعديل الخدمة";
+          card.prepend(editBtn);
+        }
+        if(!card.dataset.serviceOrder) card.dataset.serviceOrder = String(index + 1);
+      });
     }
   }
 
@@ -2562,42 +2669,17 @@
   function resetForm(){
     closePreviewUrl();
     form.reset();
+    editServiceId = null;
+    editServiceOrder = null;
+    editExistingImage = "";
     document.getElementById("altariqServiceIcon").value = "✦";
     document.getElementById("altariqServiceVisible").checked = true;
     preview.removeAttribute("src");
     preview.style.display = "none";
     count.textContent = "0";
+    document.querySelector("#altariqServiceModal .asm-head h2").textContent = "إضافة خدمة جديدة";
+    submit.textContent = "إضافة ونشر";
     setStatus("");
-  }
-
-  async function getNextNumber(){
-    let max = 0;
-
-    try{
-      const snap = await getDocs(collection(db,"services"));
-      snap.forEach(s=>{
-        const d=s.data() || {};
-        const n=Number(d.order || d.number || 0);
-        if(Number.isFinite(n)) max=Math.max(max,n);
-      });
-    }catch(e){
-      console.warn("Could not read services for next number:",e);
-    }
-
-    if(max === 0){
-      try{
-        const local = JSON.parse(localStorage.getItem(LOCAL_KEY) || "[]");
-        if(Array.isArray(local)){
-          local.forEach(s=>{
-            const n=Number(s.order || s.number || 0);
-            if(Number.isFinite(n)) max=Math.max(max,n);
-          });
-        }
-      }catch{}
-    }
-
-    const next = max + 1;
-    return String(next).padStart(2,"0");
   }
 
   async function openServiceModal(){
@@ -2606,6 +2688,56 @@
     modal.classList.add("open");
     modal.setAttribute("aria-hidden","false");
     setTimeout(()=>document.getElementById("altariqServiceName")?.focus(),50);
+  }
+
+  async function openEditServiceModal(serviceId, serviceOrder){
+    resetForm();
+
+    try{
+      const items = await getAllServices();
+      let service = null;
+
+      if(serviceId){
+        service = items.find(s=>String(s.id)===String(serviceId)) || null;
+      }
+
+      if(!service && serviceOrder){
+        service = items.find(s=>Number(s.order || s.number || 0)===Number(serviceOrder)) || null;
+      }
+
+      if(!service){
+        setStatus("تعذر العثور على بيانات هذه الخدمة في Firebase.",true);
+        modal.classList.add("open");
+        modal.setAttribute("aria-hidden","false");
+        return;
+      }
+
+      editServiceId = String(service.id);
+      editServiceOrder = Number(service.order || service.number || 0) || null;
+      editExistingImage = String(service.image || service.imageUrl || service.publicImage || "");
+
+      document.querySelector("#altariqServiceModal .asm-head h2").textContent = "تعديل الخدمة";
+      document.getElementById("altariqServiceName").value = service.name || service.title || "";
+      document.getElementById("altariqServiceKicker").value = service.kicker || "";
+      document.getElementById("altariqServiceNumber").value = String(service.number || service.order || "").padStart(2,"0");
+      document.getElementById("altariqServiceIcon").value = service.icon || "✦";
+      description.value = String(service.description || "").slice(0,500);
+      count.textContent = String(description.value.length);
+      document.getElementById("altariqServiceVisible").checked = service.visible !== false;
+
+      if(editExistingImage){
+        preview.src = editExistingImage;
+        preview.style.display = "block";
+      }
+
+      submit.textContent = "حفظ التعديلات";
+      modal.classList.add("open");
+      modal.setAttribute("aria-hidden","false");
+      setTimeout(()=>document.getElementById("altariqServiceName")?.focus(),50);
+    }catch(error){
+      console.error("Open service editor failed:",error);
+      alert("تعذر فتح بيانات الخدمة للتعديل.");
+    }
   }
 
   function closeServiceModal(){
@@ -2623,6 +2755,22 @@
     if(servicesPage?.classList.contains("active")){
       openServiceModal();
     }
+  });
+
+  document.getElementById("adminServicesGrid")?.addEventListener("click",event=>{
+    const button = event.target.closest(".altariq-service-edit-btn");
+    if(!button) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const card = button.closest(".service-card");
+    if(!card) return;
+
+    openEditServiceModal(
+      card.dataset.serviceId || "",
+      card.dataset.serviceOrder || ""
+    );
   });
 
   document.getElementById("altariqServiceClose").addEventListener("click",closeServiceModal);
@@ -2716,6 +2864,7 @@
   form.addEventListener("submit",async e=>{
     e.preventDefault();
 
+    const isEditing = Boolean(editServiceId);
     const name = document.getElementById("altariqServiceName").value.trim();
     const kicker = document.getElementById("altariqServiceKicker").value.trim();
     const number = document.getElementById("altariqServiceNumber").value.trim() || await getNextNumber();
@@ -2729,21 +2878,27 @@
       return;
     }
 
-    if(!file){
+    // New services require an image. Existing services can keep their current image.
+    if(!isEditing && !file){
       setStatus("اختر صورة للخدمة من جهازك.",true);
       return;
     }
 
-    submit.disabled=true;
-    submit.textContent="جاري الرفع والحفظ...";
-    setStatus("جاري رفع صورة الخدمة إلى Cloudinary...");
+    submit.disabled = true;
+    submit.textContent = isEditing ? "جاري حفظ التعديلات..." : "جاري الرفع والحفظ...";
 
     try{
-      const image = await uploadImage(file);
-      setStatus("تم رفع الصورة. جاري حفظ الخدمة في Firebase...");
+      let image = editExistingImage;
 
-      const numericOrder = Number(number) || 99;
-      const id = `service-${String(number).padStart(2,"0")}-${Date.now()}`;
+      if(file){
+        setStatus("جاري رفع صورة الخدمة إلى Cloudinary...");
+        image = await uploadImage(file);
+      }
+
+      setStatus(isEditing ? "جاري حفظ التعديلات في Firebase..." : "تم رفع الصورة. جاري حفظ الخدمة في Firebase...");
+
+      const numericOrder = Number(number) || editServiceOrder || 99;
+      const id = isEditing ? editServiceId : `service-${String(number).padStart(2,"0")}-${Date.now()}`;
       const now = new Date().toISOString();
 
       const service = {
@@ -2761,33 +2916,29 @@
         visible,
         published:visible,
         status:visible ? "Published" : "Draft",
-        updated:now,
-        createdAt:now
+        updated:now
       };
 
-      // Primary collection used by your current Firebase services setup.
-      await setDoc(doc(db,"services",id),service,{merge:false});
+      if(!isEditing) service.createdAt = now;
 
-      // Compatibility with the older public sync code that used website_services.
+      await setDoc(doc(db,"services",id),service,{merge:isEditing});
+
       try{
-        await setDoc(doc(db,"website_services",id),service,{merge:false});
+        await setDoc(doc(db,"website_services",id),service,{merge:isEditing});
       }catch(compatError){
         console.warn("website_services compatibility save skipped:",compatError);
       }
 
       updateLocalService(service);
 
-      // Let existing admin-service-sync.js refresh if it listens to these events.
       window.dispatchEvent(new CustomEvent("altariq:service-added",{detail:service}));
       window.dispatchEvent(new CustomEvent("altariq:services-updated"));
 
-      // Render the new service immediately in the Services page.
       await refreshAddedServices();
 
-      setStatus("✅ تم إضافة الخدمة ورفع الصورة ونشرها بنجاح.");
+      setStatus(isEditing ? "✅ تم تعديل الخدمة بنجاح." : "✅ تم إضافة الخدمة ورفع الصورة ونشرها بنجاح.");
       closeServiceModal();
 
-      // Keep the user on the Services page and refresh data through the existing manager.
       setTimeout(()=>{
         try{
           document.querySelector('.nav-btn[data-page="services"]')?.click();
@@ -2795,11 +2946,11 @@
       },250);
 
     }catch(error){
-      console.error("Add service failed:",error);
-      setStatus("❌ " + (error?.message || "تعذر إضافة الخدمة."),true);
+      console.error(isEditing ? "Edit service failed:" : "Add service failed:",error);
+      setStatus("❌ " + (error?.message || (isEditing ? "تعذر تعديل الخدمة." : "تعذر إضافة الخدمة.")),true);
     }finally{
       submit.disabled=false;
-      submit.textContent="إضافة ونشر";
+      submit.textContent = editServiceId ? "حفظ التعديلات" : "إضافة ونشر";
     }
   });
 
@@ -2809,7 +2960,7 @@
   // Also refresh when another part of the admin reports a services update.
   window.addEventListener("altariq:service-added", ()=>refreshAddedServices());
 
-  console.info("✅ Add Service modal ready — device upload + Cloudinary + Firestore + admin rendering.");
+  console.info("✅ Service manager ready — Add + Edit + device upload + Cloudinary + Firestore.");
 </script>
 <!-- ALTARIQ_ADD_SERVICE_MODULE_END -->
 
