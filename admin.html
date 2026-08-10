@@ -1,8 +1,39 @@
-function goToPage(pageId){
+/* =========================================================
+   PAGE NAVIGATION
+   إظهار زر إضافة مشروع فقط في صفحة عرض أعمالنا
+========================================================= */
 
-  /* ==========================================
+function updateQuickAddButton(pageId) {
+
+  const quickAdd = $("#quickAdd");
+
+  if (!quickAdd) return;
+
+
+  /* يظهر فقط في صفحة Our Works */
+
+  if (pageId === "works") {
+
+    quickAdd.style.display = "inline-flex";
+
+  } else {
+
+    quickAdd.style.display = "none";
+
+  }
+
+}
+
+
+/* =========================================================
+   GO TO PAGE
+========================================================= */
+
+function goToPage(pageId) {
+
+  /* -----------------------------------------
      تغيير الصفحة النشطة
-  ========================================== */
+  ----------------------------------------- */
 
   $$(".page").forEach(page => {
 
@@ -14,9 +45,9 @@ function goToPage(pageId){
   });
 
 
-  /* ==========================================
-     تغيير زر القائمة الجانبية النشط
-  ========================================== */
+  /* -----------------------------------------
+     تغيير الزر النشط في القائمة الجانبية
+  ----------------------------------------- */
 
   $$(".nav-btn").forEach(button => {
 
@@ -28,9 +59,9 @@ function goToPage(pageId){
   });
 
 
-  /* ==========================================
-     عنوان الصفحة
-  ========================================== */
+  /* -----------------------------------------
+     عناوين الصفحات
+  ----------------------------------------- */
 
   const titles = {
 
@@ -47,49 +78,41 @@ function goToPage(pageId){
   };
 
 
-  $("#pageTitle").textContent =
-    titles[pageId] || "Dashboard";
+  const pageTitle = $("#pageTitle");
 
+  if (pageTitle) {
 
-  /* ==========================================
-     زر إضافة مشروع جديد
-
-     يظهر فقط داخل صفحة عرض أعمالنا
-  ========================================== */
-
-  const quickAddButton =
-    $("#quickAdd");
-
-
-  if (quickAddButton) {
-
-    if (pageId === "works") {
-
-      quickAddButton.style.display =
-        "inline-flex";
-
-    } else {
-
-      quickAddButton.style.display =
-        "none";
-
-    }
+    pageTitle.textContent =
+      titles[pageId] || "Dashboard";
 
   }
 
 
-  /* ==========================================
+  /* -----------------------------------------
+     زر إضافة مشروع
+
+     يظهر فقط في works
+  ----------------------------------------- */
+
+  updateQuickAddButton(pageId);
+
+
+  /* -----------------------------------------
      إغلاق القائمة الجانبية في الموبايل
-  ========================================== */
+  ----------------------------------------- */
 
-  $("#sidebar")
-    ?.classList
-    .remove("open");
+  const sidebar = $("#sidebar");
+
+  if (sidebar) {
+
+    sidebar.classList.remove("open");
+
+  }
 
 
-  /* ==========================================
-     الرجوع لأعلى الصفحة
-  ========================================== */
+  /* -----------------------------------------
+     الرجوع إلى أعلى الصفحة
+  ----------------------------------------- */
 
   window.scrollTo({
 
@@ -103,7 +126,7 @@ function goToPage(pageId){
 
 
 /* =========================================================
-   أزرار التنقل
+   SIDEBAR NAVIGATION BUTTONS
 ========================================================= */
 
 $$(".nav-btn").forEach(button => {
@@ -112,9 +135,12 @@ $$(".nav-btn").forEach(button => {
     "click",
     () => {
 
-      goToPage(
-        button.dataset.page
-      );
+      const pageId =
+        button.dataset.page;
+
+      if (!pageId) return;
+
+      goToPage(pageId);
 
     }
   );
@@ -123,7 +149,7 @@ $$(".nav-btn").forEach(button => {
 
 
 /* =========================================================
-   أزرار data-go
+   DATA-GO BUTTONS
 ========================================================= */
 
 $$("[data-go]").forEach(button => {
@@ -132,9 +158,12 @@ $$("[data-go]").forEach(button => {
     "click",
     () => {
 
-      goToPage(
-        button.dataset.go
-      );
+      const pageId =
+        button.dataset.go;
+
+      if (!pageId) return;
+
+      goToPage(pageId);
 
     }
   );
@@ -146,55 +175,87 @@ $$("[data-go]").forEach(button => {
    MOBILE MENU
 ========================================================= */
 
-$("#mobileMenu")
-  ?.addEventListener(
+const mobileMenuButton =
+  $("#mobileMenu");
+
+
+if (mobileMenuButton) {
+
+  mobileMenuButton.addEventListener(
     "click",
     () => {
 
-      $("#sidebar")
-        ?.classList
-        .toggle("open");
+      const sidebar =
+        $("#sidebar");
 
-    }
-  );
+      if (sidebar) {
 
-
-/* =========================================================
-   زر إضافة مشروع الموجود في الهيدر
-
-   يعمل فقط إذا كنا في صفحة works
-========================================================= */
-
-$("#quickAdd")
-  ?.addEventListener(
-    "click",
-    () => {
-
-      const worksPage =
-        $("#works");
-
-
-      if (
-        worksPage &&
-        worksPage.classList.contains(
-          "active"
-        )
-      ) {
-
-        openModal();
+        sidebar.classList.toggle(
+          "open"
+        );
 
       }
 
     }
   );
 
+}
+
 
 /* =========================================================
-   زر Add Project الموجود داخل صفحة عرض أعمالنا
+   TOP ADD PROJECT BUTTON
+   زر إضافة مشروع الموجود في الهيدر
 ========================================================= */
 
-$("#addProject")
-  ?.addEventListener(
+const quickAddButton =
+  $("#quickAdd");
+
+
+if (quickAddButton) {
+
+  quickAddButton.addEventListener(
+    "click",
+    () => {
+
+      /*
+        حماية إضافية:
+        لا يعمل الزر إلا إذا كانت صفحة
+        عرض أعمالنا مفتوحة.
+      */
+
+      const worksPage =
+        $("#works");
+
+
+      if (
+        !worksPage ||
+        !worksPage.classList.contains("active")
+      ) {
+
+        return;
+
+      }
+
+
+      openModal();
+
+    }
+  );
+
+}
+
+
+/* =========================================================
+   ADD PROJECT BUTTON INSIDE OUR WORKS
+========================================================= */
+
+const addProjectButton =
+  $("#addProject");
+
+
+if (addProjectButton) {
+
+  addProjectButton.addEventListener(
     "click",
     () => {
 
@@ -203,33 +264,53 @@ $("#addProject")
     }
   );
 
+}
+
 
 /* =========================================================
-   MODAL BUTTONS
+   CLOSE PROJECT MODAL
 ========================================================= */
 
-$("#closeModal")
-  ?.addEventListener(
+const closeModalButton =
+  $("#closeModal");
+
+
+if (closeModalButton) {
+
+  closeModalButton.addEventListener(
     "click",
     closeModal
   );
 
+}
 
-$("#cancelModal")
-  ?.addEventListener(
+
+const cancelModalButton =
+  $("#cancelModal");
+
+
+if (cancelModalButton) {
+
+  cancelModalButton.addEventListener(
     "click",
     closeModal
   );
 
+}
 
-$("#projectModal")
-  ?.addEventListener(
+
+const projectModal =
+  $("#projectModal");
+
+
+if (projectModal) {
+
+  projectModal.addEventListener(
     "click",
     event => {
 
       if (
-        event.target.id ===
-        "projectModal"
+        event.target === projectModal
       ) {
 
         closeModal();
@@ -239,9 +320,11 @@ $("#projectModal")
     }
   );
 
+}
+
 
 /* =========================================================
-   ESC closes modal
+   ESCAPE KEY
 ========================================================= */
 
 document.addEventListener(
@@ -261,46 +344,60 @@ document.addEventListener(
 
 
 /* =========================================================
-   Search + Category filter
+   PROJECT SEARCH
 ========================================================= */
 
-$("#searchInput")
-  ?.addEventListener(
+const searchInput =
+  $("#searchInput");
+
+
+if (searchInput) {
+
+  searchInput.addEventListener(
     "input",
     renderWorks
   );
 
+}
 
-$("#categoryFilter")
-  ?.addEventListener(
+
+/* =========================================================
+   CATEGORY FILTER
+========================================================= */
+
+const categoryFilter =
+  $("#categoryFilter");
+
+
+if (categoryFilter) {
+
+  categoryFilter.addEventListener(
     "change",
     renderWorks
   );
 
+}
+
 
 /* =========================================================
-   IMPORTANT:
-   عند تحميل الأدمن أول مرة
-   الصفحة الافتراضية Dashboard
-   لذلك نخفي زر Add New Project
+   INITIAL BUTTON STATE
+
+   عند فتح الأدمن نعرف الصفحة النشطة الحالية
+   ونقرر هل يظهر زر إضافة مشروع أم لا.
 ========================================================= */
 
-document.addEventListener(
-  "DOMContentLoaded",
-  () => {
-
-    const quickAddButton =
-      $("#quickAdd");
+const initialActivePage =
+  document.querySelector(
+    ".page.active"
+  );
 
 
-    if (
-      quickAddButton
-    ) {
+const initialPageId =
+  initialActivePage
+    ? initialActivePage.id
+    : "dashboard";
 
-      quickAddButton.style.display =
-        "none";
 
-    }
-
-  }
+updateQuickAddButton(
+  initialPageId
 );
