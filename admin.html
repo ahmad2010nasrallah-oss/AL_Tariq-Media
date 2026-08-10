@@ -742,7 +742,7 @@
         <div class="page-head">
           <div><h2>Company <span style="color:var(--brand-yellow)">Services</span></h2><p>الخدمات الأساسية التي تقدمها شركة الطريق ميديا.</p></div>
         </div>
-        <div class="services-grid">
+        <div class="services-grid" id="adminServicesGrid">
           <article class="service-card glass">
             <div class="service-visual">
               <img src="https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&amp;fit=crop&amp;w=1400&amp;q=84" alt="إدارة مواقع التواصل الاجتماعي" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">
@@ -2494,6 +2494,64 @@
     status.style.color = isError ? "#ff9f9f" : "#cbd8eb";
   }
 
+  function escapeHtml(value=""){
+    return String(value).replace(/[&<>"']/g, ch => ({
+      "&":"&amp;",
+      "<":"&lt;",
+      ">":"&gt;",
+      '"':"&quot;",
+      "'":"&#039;"
+    }[ch]));
+  }
+
+  function serviceCardMarkup(service){
+    const image = String(service.image || service.imageUrl || service.publicImage || "").trim();
+    const number = String(service.number || service.order || "").padStart(2,"0");
+    const icon = String(service.icon || "✦");
+    const kicker = String(service.kicker || "Service");
+    const name = String(service.name || service.title || "خدمة");
+    const description = String(service.description || "").slice(0,500);
+
+    return `
+      <article class="service-card glass" data-dynamic-service="1" data-service-id="${escapeHtml(service.id || "")}">
+        <div class="service-visual">
+          ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(name)}" loading="lazy" referrerpolicy="no-referrer">` : ""}
+          <span class="service-number">${escapeHtml(number)}</span>
+          <div class="service-icon" aria-hidden="true">${escapeHtml(icon)}</div>
+        </div>
+        <div class="service-content">
+          <span class="service-kicker">${escapeHtml(kicker)}</span>
+          <h3>${escapeHtml(name)}</h3>
+          <p>${escapeHtml(description)}</p>
+        </div>
+      </article>
+    `;
+  }
+
+  async function refreshAddedServices(){
+    const grid = document.getElementById("adminServicesGrid");
+    if(!grid) return;
+
+    // Remove only cards created dynamically by this module.
+    grid.querySelectorAll('[data-dynamic-service="1"]').forEach(el=>el.remove());
+
+    try{
+      const snap = await getDocs(collection(db,"services"));
+      const items = snap.docs
+        .map(d=>({id:d.id,...d.data()}))
+        .filter(s => (s.visible !== false) && (Number(s.order || s.number || 0) > 4))
+        .sort((a,b)=>(Number(a.order)||99)-(Number(b.order)||99));
+
+      items.forEach(service=>{
+        grid.insertAdjacentHTML("beforeend", serviceCardMarkup(service));
+      });
+
+      console.info(`✅ ${items.length} added service(s) rendered in admin.`);
+    }catch(error){
+      console.warn("Could not refresh added services:", error);
+    }
+  }
+
   function closePreviewUrl(){
     if(previewObjectUrl){
       URL.revokeObjectURL(previewObjectUrl);
@@ -2723,6 +2781,9 @@
       window.dispatchEvent(new CustomEvent("altariq:service-added",{detail:service}));
       window.dispatchEvent(new CustomEvent("altariq:services-updated"));
 
+      // Render the new service immediately in the Services page.
+      await refreshAddedServices();
+
       setStatus("✅ تم إضافة الخدمة ورفع الصورة ونشرها بنجاح.");
       closeServiceModal();
 
@@ -2742,7 +2803,13 @@
     }
   });
 
-  console.info("✅ Add Service modal ready — device upload + Cloudinary + Firestore.");
+  // Load services added after the original four whenever the admin opens.
+  refreshAddedServices();
+
+  // Also refresh when another part of the admin reports a services update.
+  window.addEventListener("altariq:service-added", ()=>refreshAddedServices());
+
+  console.info("✅ Add Service modal ready — device upload + Cloudinary + Firestore + admin rendering.");
 </script>
 <!-- ALTARIQ_ADD_SERVICE_MODULE_END -->
 
