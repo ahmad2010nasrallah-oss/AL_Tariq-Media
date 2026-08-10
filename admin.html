@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#071a35" />
+  <title>Al‑Tariq Media — Admin Panel</title>
+  <link rel="stylesheet" href="admin.css?v=20260810-1">
+</head>
+<body>
+
+  <section class="auth-screen" id="authScreen">
+    <div class="auth-card glass">
+      <button class="language-btn auth-language-btn" type="button" data-language-toggle aria-label="Switch language"><span class="lang-code">EN</span><span class="lang-name">English</span></button>
+      <img src="images/admin-asset-01.png" alt="شعار الطريق ميديا" class="auth-logo">
+      <div class="auth-title">
+        <h1>Admin Login</h1>
+        <p>تسجيل الدخول إلى لوحة إدارة شركة الطريق ميديا</p>
+      </div>
+      <form class="auth-form" id="loginForm" autocomplete="off">
+        <div class="auth-field">
+          <label for="loginUsername">Username / اسم المستخدم</label>
+          <input class="input" id="loginUsername" type="text" required autocomplete="username">
+        </div>
+        <div class="auth-field">
+          <label for="loginPassword">Password / كلمة المرور</label>
+          <div class="password-wrap">
+            <input class="input" id="loginPassword" type="password" required autocomplete="current-password">
+            <button class="password-toggle" type="button" data-toggle-password="loginPassword" aria-label="إظهار كلمة المرور">◉</button>
+          </div>
+        </div>
+        <div class="auth-error" id="loginError"></div>
+        <button class="primary-btn auth-submit" type="submit">Login to Dashboard</button>
+      </form>
+      <p class="auth-hint">Default account: Username <b>ص</b> — Password <b>1</b></p>
+    </div>
+  </section>
+
+  <div class="app" id="adminApp" hidden>
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <img src="images/admin-asset-01.png" alt="شعار الطريق ميديا" class="brand-logo">
+        <div class="brand-copy">
+          <strong>Al‑Tariq Media</strong>
+          <span>Creative Admin System</span>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-btn active" data-page="dashboard">
+          <span class="nav-icon">⌂</span>
+          <span><b>Dashboard</b><br><small>لوحة التحكم</small></span>
+        </button>
+        <button class="nav-btn" data-page="analytics">
+          <span class="nav-icon">⌁</span>
+          <span><b>Website Activity</b><br><small>نشاط الويب سايت</small></span>
+        </button>
+        <button class="nav-btn" data-page="works">
+          <span class="nav-icon">▦</span>
+          <span><b>Our Works</b><br><small>عرض أعمالنا</small></span>
+        </button>
+        <button class="nav-btn" data-page="services">
+          <span class="nav-icon">✦</span>
+          <span><b>Services</b><br><small>خدمات الشركة</small></span>
+        </button>
+        <button class="nav-btn" data-page="media">
+          <span class="nav-icon">◫</span>
+          <span><b>Media Library</b><br><small>مكتبة الوسائط</small></span>
+        </button>
+        <button class="nav-btn" data-page="website-settings">
+          <span class="nav-icon">◈</span>
+          <span><b>Website Settings</b><br><small>إعدادات الويب سايت</small></span>
+        </button>
+        <button class="nav-btn" data-page="settings">
+          <span class="nav-icon">⚙</span>
+          <span><b>Settings</b><br><small>الإعدادات</small></span>
+        </button>
+      </nav>
+
+      <div class="side-card">
+        <small>System Status</small>
+        <strong>● All systems operational</strong>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar glass">
+        <div class="top-actions">
+          <button class="icon-btn mobile-menu" id="mobileMenu" aria-label="فتح القائمة">☰</button>
+          <button class="primary-btn" id="quickAdd" style="display:none"><span>＋ Add New Project</span><b>＋</b></button>
+          <button class="primary-btn" id="quickAddService" style="display:none"><span>＋ Add Service</span><b>＋</b></button>
+        </div>
+        <div class="top-title">
+          <h1 id="pageTitle">Dashboard</h1>
+          <p>Manage your creative business from one premium workspace.</p>
+        </div>
+        <div class="top-actions">
+          <button class="language-btn" type="button" data-language-toggle aria-label="Switch language"><span class="lang-code">EN</span><span class="lang-name">English</span></button>
+          <button class="icon-btn" id="themeGlow" title="Toggle glow">◐</button>
+          <button class="icon-btn logout-btn" id="logoutBtn" title="Logout">↪</button>
+          <div class="avatar" title="Al-Tariq Media"><img src="images/admin-asset-02.png" alt="Al-Tariq Media symbol"></div>
+        </div>
+      </header>
+
+      <section class="page active" id="dashboard">
+        <div class="hero glass">
+          <div>
+            <span class="eyebrow">Creative Control Center</span>
+            <h2>مرحباً بك في لوحة إدارة <span style="color:var(--brand-yellow)">الطريق ميديا</span></h2>
+            <p>
+              إدارة احترافية لأعمال الهوية البصرية، السوشال ميديا، التصوير، المونتاج وتصميم المواقع.
+              جميع مشاريع قسم <b>Our Works</b> قابلة للتعديل مباشرة بالنقر على البطاقة أو الصورة.
+            </p>
+          </div>
+          <div class="hero-logo-wrap">
+            <img src="images/admin-asset-01.png" alt="Al-Tariq Media Logo">
+          </div>
+        </div>
+
+        <div class="stats">
+          <article class="stat glass">
+            <span class="stat-label">Total Projects</span>
+            <div class="stat-value" id="statProjects">06</div>
+            <span class="stat-trend">↑ Portfolio database</span>
+          </article>
+          <article class="stat glass">
+            <span class="stat-label">Published Works</span>
+            <div class="stat-value" id="statPublished">06</div>
+            <span class="stat-trend">● Live & editable</span>
+          </article>
+          <article class="stat glass">
+            <span class="stat-label">Core Services</span>
+            <div class="stat-value">04</div>
+            <span class="stat-trend">Creative departments</span>
+          </article>
+          <article class="stat glass">
+            <span class="stat-label">Storage Mode</span>
+            <div class="stat-value" style="font-size:22px">LOCAL</div>
+            <span class="stat-trend">IndexedDB storage</span>
+          </article>
+        </div>
+
+        <div class="grid-2">
+          <article class="panel glass">
+            <div class="panel-head">
+              <div><h3>Recent Activity</h3><span>آخر التعديلات على المشاريع</span></div>
+              <button class="secondary-btn" data-go="works">View all</button>
+            </div>
+            <div class="activity" id="activityList"></div>
+          </article>
+
+          <article class="panel glass">
+            <div class="panel-head">
+              <div><h3>Service Performance</h3><span>Business focus overview</span></div>
+            </div>
+            <div class="service-bars">
+              <div><div class="bar-label"><span>Social Media Management</span><b>92%</b></div><div class="bar"><i style="width:92%"></i></div></div>
+              <div><div class="bar-label"><span>Photography & Production</span><b>84%</b></div><div class="bar"><i style="width:84%"></i></div></div>
+              <div><div class="bar-label"><span>Video Editing</span><b>78%</b></div><div class="bar"><i style="width:78%"></i></div></div>
+              <div><div class="bar-label"><span>Web Design</span><b>88%</b></div><div class="bar"><i style="width:88%"></i></div></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+
+      
+      <section class="page" id="analytics">
+        <div class="analytics-pro-shell">
+
+          <div class="analytics-hero glass">
+            <div class="analytics-hero-copy">
+              <span class="eyebrow">WEBSITE INTELLIGENCE</span>
+              <h2>نشاط الويب سايت</h2>
+              <p>لوحة تحليل متكاملة لمتابعة حركة الزوار، التفاعل مع المشاريع والخدمات، وروابط التواصل من مكان واحد.</p>
+            </div>
+
+            <div class="analytics-hero-controls">
+              <label class="analytics-filter">
+                <span>الفترة</span>
+                <select id="analyticsPeriod">
+                  <option value="7">آخر 7 أيام</option>
+                  <option value="30" selected>آخر 30 يوم</option>
+                  <option value="90">آخر 90 يوم</option>
+                  <option value="all">كل الوقت</option>
+                </select>
+              </label>
+
+              <button class="analytics-refresh-btn" type="button" id="analyticsRefresh">
+                <span>↻</span>
+                تحديث البيانات
+              </button>
+            </div>
+          </div>
+
+          <div class="analytics-kpi-grid">
+            <article class="analytics-kpi glass">
+              <div class="analytics-kpi-top">
+                <span class="analytics-kpi-icon">◉</span>
+                <span class="analytics-kpi-label">الزوار الفريدون</span>
+              </div>
+              <b id="waUniqueVisitors">0</b>
+              <small>أجهزة ومتصفحات فريدة</small>
+            </article>
+
+            <article class="analytics-kpi glass">
+              <div class="analytics-kpi-top">
+                <span class="analytics-kpi-icon">⌂</span>
+                <span class="analytics-kpi-label">مشاهدات الصفحات</span>
+              </div>
+              <b id="waPageViews">0</b>
+              <small>إجمالي فتح الصفحات</small>
+            </article>
+
+            <article class="analytics-kpi glass">
+              <div class="analytics-kpi-top">
+                <span class="analytics-kpi-icon">✦</span>
+                <span class="analytics-kpi-label">عرض الأعمال</span>
+              </div>
+              <b id="waPortfolioViews">0</b>
+              <small>زيارات صفحة Portfolio</small>
+            </article>
+
+            <article class="analytics-kpi glass">
+              <div class="analytics-kpi-top">
+                <span class="analytics-kpi-icon">↗</span>
+                <span class="analytics-kpi-label">فتح المشاريع</span>
+              </div>
+              <b id="waProjectOpens">0</b>
+              <small>مرات فتح بطاقات المشاريع</small>
+            </article>
+
+            <article class="analytics-kpi glass">
+              <div class="analytics-kpi-top">
+                <span class="analytics-kpi-icon">◎</span>
+                <span class="analytics-kpi-label">روابط Drive</span>
+              </div>
+              <b id="waDriveClicks">0</b>
+              <small>ضغطات ملفات ومجلدات Drive</small>
+            </article>
+
+            <article class="analytics-kpi analytics-kpi-accent glass">
+              <div class="analytics-kpi-top">
+                <span class="analytics-kpi-icon">✆</span>
+                <span class="analytics-kpi-label">التواصل</span>
+              </div>
+              <b id="waContactClicks">0</b>
+              <small>واتساب / هاتف / بريد</small>
+            </article>
+          </div>
+
+          <div class="analytics-main-grid">
+            <article class="analytics-card analytics-card-wide glass">
+              <div class="analytics-card-head">
+                <div>
+                  <span class="analytics-card-kicker">VISITOR INTEREST</span>
+                  <h3>اهتمام الزوار</h3>
+                  <p>تحليل نسبي للتفاعلات لمعرفة أكثر ما يجذب الزوار.</p>
+                </div>
+                <div class="analytics-status-dot">LIVE</div>
+              </div>
+
+              <div id="waInterestBars" class="analytics-interest-bars"></div>
+              <div id="waTopInsight" class="analytics-insight">
+                لا توجد بيانات كافية بعد.
+              </div>
+            </article>
+
+            <article class="analytics-card glass">
+              <div class="analytics-card-head">
+                <div>
+                  <span class="analytics-card-kicker">TOP PROJECTS</span>
+                  <h3>أكثر المشاريع جذبًا</h3>
+                  <p>الأكثر فتحًا أو انتقالًا إلى Drive.</p>
+                </div>
+              </div>
+              <div id="waTopProjects" class="analytics-list"></div>
+            </article>
+
+            <article class="analytics-card glass">
+              <div class="analytics-card-head">
+                <div>
+                  <span class="analytics-card-kicker">TOP SERVICES</span>
+                  <h3>أكثر الخدمات اهتمامًا</h3>
+                  <p>الخدمات التي حصلت على أكبر تفاعل.</p>
+                </div>
+              </div>
+              <div id="waTopServices" class="analytics-list"></div>
+            </article>
+
+            <article class="analytics-card glass">
+              <div class="analytics-card-head">
+                <div>
+                  <span class="analytics-card-kicker">RECENT ACTIVITY</span>
+                  <h3>آخر نشاطات الموقع</h3>
+                  <p>أحدث التفاعلات المسجلة من الزوار.</p>
+                </div>
+              </div>
+              <div id="waRecentEvents" class="analytics-list analytics-recent-list"></div>
+            </article>
+          </div>
+
+          <article class="analytics-card analytics-chart-card glass">
+            <div class="analytics-card-head">
+              <div>
+                <span class="analytics-card-kicker">DAILY TRAFFIC</span>
+                <h3>توزيع النشاط اليومي</h3>
+                <p>عدد الأحداث المسجلة يومًا بيوم خلال الفترة المحددة.</p>
+              </div>
+            </div>
+
+            <div id="waDailyChart" class="analytics-daily-chart"></div>
+          </article>
+
+        </div>
+      </section>
+
+      <section class="page" id="works">
+        <div class="page-head">
+          <div>
+            <h2>عرض أعمالنا <span style="color:var(--brand-yellow)">Our Works</span></h2>
+            <p>انقر على أي مشروع أو صورة لتعديل الاسم، الوصف، التصنيف والصورة ثم احفظ التغييرات.</p>
+          </div>
+          <button class="primary-btn" id="addProject">＋ Add Project</button>
+        </div>
+
+        <div class="toolbar glass">
+          <div class="search"><span>⌕</span><input id="searchInput" type="search" placeholder="Search projects / ابحث عن مشروع..."></div>
+          <select class="field-select" id="categoryFilter">
+            <option value="all">All Categories</option>
+            <option value="Visual Identity">Visual Identity</option>
+            <option value="Social Media">Social Media</option>
+            <option value="Photography">Photography</option>
+            <option value="Video Production">Video Production</option>
+            <option value="Web Design">Web Design</option>
+          </select>
+          <button class="secondary-btn" id="resetDemo">Reset Demo</button>
+        </div>
+
+        <div class="works-grid" id="worksGrid"></div>
+      </section>
+
+      <section class="page" id="services">
+        <div class="page-head">
+          <div><h2>Company <span style="color:var(--brand-yellow)">Services</span></h2><p>الخدمات الأساسية التي تقدمها شركة الطريق ميديا.</p></div>
+        </div>
+        <div class="services-grid" id="adminServicesGrid">
+          <article class="service-card glass">
+            <div class="service-visual">
+              <img src="https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&amp;fit=crop&amp;w=1400&amp;q=84" alt="إدارة مواقع التواصل الاجتماعي" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">
+              <span class="service-number">01</span>
+              <div class="service-icon" aria-hidden="true">◉</div>
+            </div>
+            <div class="service-content">
+              <span class="service-kicker">Digital Growth</span>
+              <h3>Social Media Management</h3>
+              <p>إدارة المحتوى، التخطيط، النشر وبناء الهوية الرقمية للحسابات.</p>
+            </div>
+          </article>
+
+          <article class="service-card glass">
+            <div class="service-visual">
+              <img src="https://images.unsplash.com/photo-1452780212940-6f5c0d14d848?auto=format&amp;fit=crop&amp;w=1400&amp;q=84" alt="خدمة تصوير المنتجات والحملات" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">
+              <span class="service-number">02</span>
+              <div class="service-icon" aria-hidden="true">◎</div>
+            </div>
+            <div class="service-content">
+              <span class="service-kicker">Visual Production</span>
+              <h3>Photography</h3>
+              <p>تصوير المنتجات والحملات التجارية بأسلوب احترافي متوافق مع العلامة.</p>
+            </div>
+          </article>
+
+          <article class="service-card glass">
+            <div class="service-visual">
+              <img src="https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&amp;fit=crop&amp;w=1400&amp;q=84" alt="خدمة مونتاج وإنتاج الفيديو" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">
+              <span class="service-number">03</span>
+              <div class="service-icon" aria-hidden="true">▶</div>
+            </div>
+            <div class="service-content">
+              <span class="service-kicker">Motion &amp; Editing</span>
+              <h3>Video Editing</h3>
+              <p>مونتاج الفيديوهات الإعلانية والقصيرة مع معالجة بصرية احترافية.</p>
+            </div>
+          </article>
+
+          <article class="service-card glass">
+            <div class="service-visual">
+              <img src="https://images.unsplash.com/photo-1547658719-da2b51169166?auto=format&amp;fit=crop&amp;w=1400&amp;q=84" alt="خدمة تصميم وتطوير المواقع" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">
+              <span class="service-number">04</span>
+              <div class="service-icon" aria-hidden="true">⌘</div>
+            </div>
+            <div class="service-content">
+              <span class="service-kicker">Web Experience</span>
+              <h3>Web Design</h3>
+              <p>تصميم مواقع سريعة ومتجاوبة تعكس هوية المشروع وتخدم أهدافه.</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="page" id="media">
+        <div class="page-head">
+          <div><h2>Media <span style="color:var(--brand-yellow)">Library</span></h2><p>جميع صور المشاريع المحفوظة حالياً داخل المتصفح.</p></div>
+        </div>
+        <div class="works-grid" id="mediaGrid"></div>
+      </section>
+
+      <section class="page" id="website-settings">
+        <div class="page-head">
+          <div>
+            <h2>Website <span style="color:var(--brand-yellow)">Settings</span></h2>
+            <p>إدارة بيانات الموقع، التواصل، محركات البحث والأقسام الظاهرة للزوار.</p>
+          </div>
+          <button class="secondary-btn" type="button" id="openWebsitePreview">↗ Open Website</button>
+        </div>
+
+        <p class="website-settings-intro">
+          يتم حفظ هذه الإعدادات داخل المتصفح، وتدخل تلقائياً ضمن ملف النسخة الاحتياطية الرئيسي.
+          يمكن لصفحة الزوار قراءة الإعدادات من المفتاح <b>altariq_media_website_settings_v1</b> عند استضافتها على نفس النطاق.
+        </p>
+
+        <form id="websiteSettingsForm" autocomplete="off">
+          <div class="website-settings-grid">
+            <article class="website-settings-card glass">
+              <div class="panel-head"><div><h3>General Information</h3><span>معلومات وهوية الموقع</span></div></div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="websiteName">Website Name / اسم الموقع</label>
+                  <input class="input" id="websiteName" maxlength="80" required>
+                </div>
+                <div class="form-group">
+                  <label for="websiteLanguage">Default Language / اللغة الافتراضية</label>
+                  <select class="field-select" id="websiteLanguage">
+                    <option value="ar">العربية</option>
+                    <option value="en">English</option>
+                  </select>
+                </div>
+                <div class="form-group full">
+                  <label for="websiteTagline">Tagline / العبارة التعريفية</label>
+                  <input class="input" id="websiteTagline" maxlength="140">
+                </div>
+                <div class="form-group full">
+                  <label for="websiteUrl">Website URL / رابط الموقع</label>
+                  <input class="input" id="websiteUrl" type="url" dir="ltr" placeholder="https://example.com">
+                </div>
+                <div class="form-group full">
+                  <label for="websiteHeroTitle">Hero Title / العنوان الرئيسي</label>
+                  <input class="input" id="websiteHeroTitle" maxlength="160">
+                </div>
+                <div class="form-group full">
+                  <label for="websiteHeroDescription">Hero Description / وصف الواجهة الرئيسية</label>
+                  <textarea class="textarea" id="websiteHeroDescription" maxlength="420"></textarea>
+                </div>
+                <div class="form-group full">
+                  <label for="websiteCopyright">Footer Copyright / حقوق النشر</label>
+                  <input class="input" id="websiteCopyright" maxlength="180">
+                </div>
+              </div>
+            </article>
+
+            <article class="website-settings-card glass">
+              <div class="panel-head"><div><h3>Contact & Social Media</h3><span>معلومات التواصل والحسابات</span></div></div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="websiteWhatsapp">WhatsApp / رقم واتساب</label>
+                  <input class="input" id="websiteWhatsapp" dir="ltr" maxlength="30" placeholder="9627XXXXXXXX">
+                </div>
+                <div class="form-group">
+                  <label for="websiteEmail">Email / البريد الإلكتروني</label>
+                  <input class="input" id="websiteEmail" type="email" dir="ltr" maxlength="120">
+                </div>
+                <div class="form-group full">
+                  <label for="websiteAddress">Address / العنوان</label>
+                  <input class="input" id="websiteAddress" maxlength="180">
+                </div>
+                <div class="form-group">
+                  <label for="websiteFacebook">Facebook</label>
+                  <input class="input website-url-field" id="websiteFacebook" type="url" dir="ltr" placeholder="https://facebook.com/...">
+                </div>
+                <div class="form-group">
+                  <label for="websiteInstagram">Instagram</label>
+                  <input class="input website-url-field" id="websiteInstagram" type="url" dir="ltr" placeholder="https://instagram.com/...">
+                </div>
+                <div class="form-group">
+                  <label for="websiteTikTok">TikTok</label>
+                  <input class="input website-url-field" id="websiteTikTok" type="url" dir="ltr" placeholder="https://tiktok.com/@...">
+                </div>
+                <div class="form-group">
+                  <label for="websiteYouTube">YouTube</label>
+                  <input class="input website-url-field" id="websiteYouTube" type="url" dir="ltr" placeholder="https://youtube.com/@...">
+                </div>
+              </div>
+            </article>
+
+            <article class="website-settings-card glass full">
+              <div class="panel-head"><div><h3>SEO Settings</h3><span>تهيئة الموقع لمحركات البحث</span></div></div>
+              <div class="form-grid">
+                <div class="form-group full">
+                  <label for="websiteSeoTitle">SEO Title / عنوان نتائج البحث</label>
+                  <input class="input" id="websiteSeoTitle" maxlength="70">
+                  <small class="field-help">يفضّل أن يكون بين 50 و60 حرفاً.</small>
+                </div>
+                <div class="form-group full">
+                  <label for="websiteSeoDescription">Meta Description / وصف نتائج البحث</label>
+                  <textarea class="textarea" id="websiteSeoDescription" maxlength="180"></textarea>
+                  <small class="field-help">يفضّل أن يكون بين 120 و160 حرفاً.</small>
+                </div>
+                <div class="form-group full">
+                  <label for="websiteSeoKeywords">Keywords / الكلمات المفتاحية</label>
+                  <input class="input" id="websiteSeoKeywords" maxlength="250" placeholder="تصميم مواقع، تصوير منتجات، إدارة سوشال ميديا">
+                </div>
+              </div>
+            </article>
+
+            <article class="website-settings-card glass full">
+              <div class="panel-head"><div><h3>Visible Sections</h3><span>التحكم بما يظهر للزوار</span></div></div>
+              <div class="website-toggle-list">
+                <div class="website-toggle-row"><div><strong>Services Section</strong><small>إظهار قسم الخدمات</small></div><button class="switch website-toggle" type="button" data-setting="showServices" aria-pressed="false"></button></div>
+                <div class="website-toggle-row"><div><strong>Our Works Section</strong><small>إظهار معرض الأعمال</small></div><button class="switch website-toggle" type="button" data-setting="showWorks" aria-pressed="false"></button></div>
+                <div class="website-toggle-row"><div><strong>Testimonials Section</strong><small>إظهار آراء العملاء</small></div><button class="switch website-toggle" type="button" data-setting="showTestimonials" aria-pressed="false"></button></div>
+                <div class="website-toggle-row"><div><strong>Contact Section</strong><small>إظهار نموذج ومعلومات التواصل</small></div><button class="switch website-toggle" type="button" data-setting="showContact" aria-pressed="false"></button></div>
+                <div class="website-toggle-row"><div><strong>Maintenance Mode</strong><small>إخفاء الموقع مؤقتاً وإظهار رسالة الصيانة</small></div><button class="switch website-toggle" type="button" data-setting="maintenanceMode" aria-pressed="false"></button></div>
+              </div>
+            </article>
+
+            <div class="website-settings-actions glass">
+              <span class="website-settings-storage">آخر حفظ: <b id="websiteSettingsSavedAt">—</b></span>
+              <div>
+                <button class="danger-btn" type="button" id="resetWebsiteSettings">Reset Defaults</button>
+                <button class="secondary-btn" type="button" id="exportWebsiteSettings">Export Settings JSON</button>
+                <button class="primary-btn" type="submit">Save Website Settings</button>
+              </div>
+            </div>
+          </div>
+        </form>
+      </section>
+
+      <section class="page" id="settings">
+        <div class="page-head">
+          <div><h2>System <span style="color:var(--brand-yellow)">Settings</span></h2><p>إعدادات واجهة لوحة الإدارة والنسخ الاحتياطي.</p></div>
+        </div>
+        <div class="settings-grid">
+          <article class="panel glass">
+            <div class="panel-head"><div><h3>Interface Preferences</h3><span>Display options</span></div></div>
+            <div class="setting-row"><div><strong>Glass Shine</strong><small>لمعة وتأثيرات الزجاج</small></div><button class="switch on" id="shineSwitch" aria-label="Glass shine"></button></div>
+            <div class="setting-row"><div><strong>Compact Cards</strong><small>Reduce portfolio spacing</small></div><button class="switch" id="compactSwitch" aria-label="Compact cards"></button></div>
+            <div class="setting-row"><div><strong>Live Editing</strong><small>Click cards to edit instantly</small></div><button class="switch on" aria-label="Live editing"></button></div>
+          </article>
+          <details class="settings-accordion glass">
+            <summary>
+              <span class="settings-option-icon">⇩</span>
+              <span class="settings-option-copy">
+                <strong>Backup</strong>
+                <small>النسخ الاحتياطي واستعادة البيانات</small>
+              </span>
+              <span class="settings-option-arrow">⌄</span>
+            </summary>
+            <div class="settings-accordion-body">
+              <p class="backup-description">
+                هذه النسخة تحفظ الأعمال داخل <b>IndexedDB</b> في نفس المتصفح.
+                صدّر ملف JSON للاحتفاظ بنسخة آمنة، أو استورد نسخة سابقة لاستعادة المشاريع.
+              </p>
+              <div class="backup-actions">
+                <button class="primary-btn" id="settingsExport">Export JSON</button>
+                <label class="secondary-btn" for="importInput">Import JSON</label>
+                <input id="importInput" type="file" accept=".json,application/json" hidden>
+              </div>
+              <div class="backup-note">
+                يُفضّل تصدير نسخة احتياطية بعد أي تعديل مهم، وقبل مسح بيانات المتصفح أو الانتقال إلى جهاز آخر.
+              </div>
+            </div>
+          </details>
+
+          <article class="panel glass">
+            <div class="panel-head"><div><h3>Account Credentials</h3><span>تغيير اسم المستخدم أو كلمة المرور</span></div></div>
+            <div class="security-note">
+              لتأكيد أي تغيير يجب إدخال كلمة المرور الحالية أولاً. بعد الحفظ سيتم تسجيل الخروج تلقائياً واستخدام البيانات الجديدة.
+            </div>
+            <form id="credentialsForm" class="credentials-form" autocomplete="off">
+              <div class="form-group full">
+                <label for="currentPassword">Current Password / كلمة المرور الحالية</label>
+                <div class="password-wrap">
+                  <input class="input" id="currentPassword" type="password" required autocomplete="current-password">
+                  <button class="password-toggle" type="button" data-toggle-password="currentPassword">◉</button>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="newUsername">New Username / اسم المستخدم الجديد</label>
+                <input class="input" id="newUsername" type="text" required maxlength="40" autocomplete="off">
+              </div>
+              <div class="form-group">
+                <label for="newPassword">New Password / كلمة المرور الجديدة</label>
+                <div class="password-wrap">
+                  <input class="input" id="newPassword" type="password" minlength="1" required autocomplete="new-password">
+                  <button class="password-toggle" type="button" data-toggle-password="newPassword">◉</button>
+                </div>
+              </div>
+              <div class="form-group full">
+                <label for="confirmPassword">Confirm New Password / تأكيد كلمة المرور</label>
+                <div class="password-wrap">
+                  <input class="input" id="confirmPassword" type="password" minlength="1" required autocomplete="new-password">
+                  <button class="password-toggle" type="button" data-toggle-password="confirmPassword">◉</button>
+                </div>
+              </div>
+              <div class="form-group full">
+                <button class="primary-btn" type="submit">Save Login Credentials</button>
+              </div>
+            </form>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="projectModal" aria-hidden="true">
+    <div class="modal glass" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-head">
+        <div><h3 id="modalTitle">Edit Project</h3><p>Update content and replace the image from your device.</p></div>
+        <button class="icon-btn" id="closeModal">✕</button>
+      </div>
+
+      <form id="projectForm">
+        <input type="hidden" id="projectId">
+        <input type="hidden" id="projectImageData">
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="projectName">Project Name / اسم المشروع</label>
+            <input class="input" id="projectName" required maxlength="70">
+          </div>
+          <div class="form-group">
+            <label for="projectCategory">Category / التصنيف</label>
+            <select class="input" id="projectCategory" required>
+              <option>Visual Identity</option>
+              <option>Social Media</option>
+              <option>Photography</option>
+              <option>Video Production</option>
+              <option>Web Design</option>
+            </select>
+          </div>
+          <div class="form-group full">
+            <label for="projectDescription">Description / الوصف</label>
+            <textarea class="textarea" id="projectDescription" maxlength="500"></textarea>
+          </div>
+          <div class="form-group full">
+            <label for="projectDriveLink">Google Drive Link / رابط Google Drive</label>
+            <input
+              class="input"
+              id="projectDriveLink"
+              type="url"
+              inputmode="url"
+              dir="ltr"
+              maxlength="500"
+              placeholder="https://drive.google.com/..."
+            >
+            <small class="field-help">ألصق رابط المشاركة من Google Drive أو Google Docs. سيظهر زر فتح الرابط داخل بطاقة المشروع.</small>
+          </div>
+          <div class="form-group full">
+            <label>Project Image / صورة المشروع</label>
+            <div class="upload-zone">
+              <img class="upload-preview" id="imagePreview" alt="Project preview">
+              <div class="upload-copy">
+                <strong>Replace project cover</strong>
+                <p>اختر صورة من جهازك بحجم لا يتجاوز 10 ميجابايت. سيتم حفظها داخل المتصفح ويمكن تعديلها لاحقاً بالنقر على المشروع.</p>
+                <label class="file-label" for="projectImage">Choose Image</label>
+                <input id="projectImage" type="file" accept="image/*" hidden>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="projectStatus">Status</label>
+            <select class="input" id="projectStatus">
+              <option value="Published">Published</option>
+              <option value="Draft">Draft</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="projectClient">Client / العميل</label>
+            <input class="input" id="projectClient" maxlength="60" placeholder="Client name">
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="danger-btn" id="deleteProject">Delete Project</button>
+          <div>
+            <button type="button" class="secondary-btn" id="cancelModal">Cancel</button>
+            <button type="submit" class="primary-btn">Save Changes</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast glass" id="toast">Saved successfully</div>
+
+  <script src="admin-main.js?v=20260810-1"></script>
+<script src="admin-extra-2.js?v=20260810-1"></script>
+<script type="module" src="admin-sync.js"></script>
+<script type="module" src="admin-service-sync.js"></script>
+<script src="admin-extra-1.js?v=20260810-1"></script>
+
+
+<!-- ALTARIQ_ADD_SERVICE_MODULE_START -->
+
+
+<div id="altariqServiceModal" aria-hidden="true">
+  <form class="asm-card" id="altariqServiceForm">
+    <div class="asm-head">
+      <h2>إضافة خدمة جديدة</h2>
+      <button type="button" class="asm-close" id="altariqServiceClose" aria-label="إغلاق">×</button>
+    </div>
+
+    <div class="asm-grid">
+      <label>
+        اسم الخدمة
+        <input id="altariqServiceName" maxlength="100" required placeholder="مثال: إدارة مواقع التواصل">
+      </label>
+
+      <label>
+        العنوان الصغير
+        <input id="altariqServiceKicker" maxlength="100" placeholder="Digital Marketing">
+      </label>
+
+      <label>
+        الرقم
+        <input id="altariqServiceNumber" maxlength="3" inputmode="numeric" placeholder="05">
+      </label>
+
+      <label>
+        الأيقونة
+        <input id="altariqServiceIcon" maxlength="6" value="✦" placeholder="✦">
+      </label>
+
+      <label class="asm-full">
+        الوصف
+        <textarea id="altariqServiceDescription" maxlength="500" placeholder="اكتب وصف الخدمة — الحد الأقصى 500 حرف"></textarea>
+        <span class="asm-counter"><span id="altariqServiceDescriptionCount">0</span>/500</span>
+      </label>
+
+      <label class="asm-full asm-upload">
+        صورة الخدمة من جهازك <small style="font-weight:400;color:#9fb0ca">(اختيارية عند التعديل)</small>
+        <input id="altariqServiceImage" type="file" accept="image/jpeg,image/png,image/webp,image/gif">
+        <small>JPG / PNG / WEBP / GIF — الحد الأقصى 10MB</small>
+        <img id="altariqServicePreview" class="asm-preview" alt="معاينة صورة الخدمة">
+      </label>
+
+      <label class="asm-full asm-visible">
+        <input id="altariqServiceVisible" type="checkbox" checked>
+        إظهار الخدمة في الموقع
+      </label>
+    </div>
+
+    <div class="asm-status" id="altariqServiceStatus"></div>
+
+    <div class="asm-actions">
+      <button type="button" class="asm-secondary" id="altariqServiceCancel">إلغاء</button>
+      <button type="submit" class="asm-primary" id="altariqServiceSubmit">إضافة ونشر</button>
+    </div>
+  </form>
+</div>
+
+<script type="module" src="admin-analytics-2.js?v=20260810-1"></script>
+<!-- ALTARIQ_ADD_SERVICE_MODULE_END -->
+
+
+<!-- AL_TARIQ_WEBSITE_ANALYTICS_ADMIN_START -->
+<script type="module" src="admin-analytics.js?v=20260810-1"></script>
+<!-- AL_TARIQ_WEBSITE_ANALYTICS_ADMIN_END -->
+
+</body>
+</html>
