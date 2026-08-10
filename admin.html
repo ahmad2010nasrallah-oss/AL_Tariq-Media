@@ -637,7 +637,8 @@
       <header class="topbar glass">
         <div class="top-actions">
           <button class="icon-btn mobile-menu" id="mobileMenu" aria-label="فتح القائمة">☰</button>
-          <button class="primary-btn" id="quickAdd"><span>＋ Add New Project</span><b>＋</b></button>
+          <button class="primary-btn" id="quickAdd" style="display:none"><span>＋ Add New Project</span><b>＋</b></button>
+          <button class="primary-btn" id="quickAddService" style="display:none"><span>＋ Add Service</span><b>＋</b></button>
         </div>
         <div class="top-title">
           <h1 id="pageTitle">Dashboard</h1>
@@ -1038,7 +1039,7 @@
           </div>
           <div class="form-group full">
             <label for="projectDescription">Description / الوصف</label>
-            <textarea class="textarea" id="projectDescription" maxlength="240"></textarea>
+            <textarea class="textarea" id="projectDescription" maxlength="500"></textarea>
           </div>
           <div class="form-group full">
             <label for="projectDriveLink">Google Drive Link / رابط Google Drive</label>
@@ -1969,6 +1970,19 @@
       $$(".page").forEach(p=>p.classList.toggle("active",p.id===pageId));
       $$(".nav-btn").forEach(b=>b.classList.toggle("active",b.dataset.page===pageId));
       updatePageTitle(pageId);
+
+      // زر إضافة مشروع يظهر فقط داخل صفحة عرض أعمالنا
+      const quickAddButton = $("#quickAdd");
+      if(quickAddButton){
+        quickAddButton.style.display = pageId === "works" ? "inline-flex" : "none";
+      }
+
+      // زر إضافة خدمة يظهر فقط داخل صفحة الخدمات
+      const quickAddServiceButton = $("#quickAddService");
+      if(quickAddServiceButton){
+        quickAddServiceButton.style.display = pageId === "services" ? "inline-flex" : "none";
+      }
+
       $("#sidebar").classList.remove("open");
       window.scrollTo({top:0,behavior:"smooth"});
     }
@@ -1976,7 +1990,48 @@
     $$(".nav-btn").forEach(btn=>btn.addEventListener("click",()=>goToPage(btn.dataset.page)));
     $$("[data-go]").forEach(btn=>btn.addEventListener("click",()=>goToPage(btn.dataset.go)));
     $("#mobileMenu").addEventListener("click",()=>$("#sidebar").classList.toggle("open"));
-    $("#quickAdd").addEventListener("click",()=>openModal());
+    $("#quickAdd").addEventListener("click",()=>{
+      const worksPage = $("#works");
+      if(worksPage && worksPage.classList.contains("active")) openModal();
+    });
+
+    $("#quickAddService").addEventListener("click",()=>{
+      const servicesPage = $("#services");
+      if(!servicesPage || !servicesPage.classList.contains("active")) return;
+
+      const directButton =
+        document.querySelector("#addService") ||
+        document.querySelector("#addServiceBtn") ||
+        document.querySelector("#serviceAddButton") ||
+        document.querySelector("[data-add-service]") ||
+        document.querySelector(".add-service-btn");
+
+      if(directButton && directButton !== $("#quickAddService")){
+        directButton.click();
+        return;
+      }
+
+      const serviceButtons = [...servicesPage.querySelectorAll("button")];
+      const labelButton = serviceButtons.find(btn=>{
+        if(btn === $("#quickAddService")) return false;
+        const label = (btn.textContent || "").trim().toLowerCase();
+        return (
+          label.includes("إضافة خدمة") ||
+          label.includes("اضافة خدمة") ||
+          label.includes("add service") ||
+          label.includes("new service")
+        );
+      });
+
+      if(labelButton){
+        labelButton.click();
+        return;
+      }
+
+      // Compatibility bridge for admin-service-sync.js
+      window.dispatchEvent(new CustomEvent("altariq:add-service-requested"));
+    });
+
     $("#addProject").addEventListener("click",()=>openModal());
     $("#closeModal").addEventListener("click",closeModal);
     $("#cancelModal").addEventListener("click",closeModal);
@@ -2211,7 +2266,485 @@
     initializeAuth();
     initializePortfolio();
   </script>
+<script>
+(function(){
+  const works = document.getElementById("works");
+  const services = document.getElementById("services");
+  const quickAdd = document.getElementById("quickAdd");
+  const quickAddService = document.getElementById("quickAddService");
+
+  if(quickAdd){
+    quickAdd.style.display = works?.classList.contains("active") ? "inline-flex" : "none";
+  }
+
+  if(quickAddService){
+    quickAddService.style.display = services?.classList.contains("active") ? "inline-flex" : "none";
+  }
+})();
+</script>
 <script type="module" src="admin-sync.js"></script>
 <script type="module" src="admin-service-sync.js"></script>
+<script>
+(function(){
+  const MAX_DESCRIPTION_LENGTH = 500;
+
+  function applyDescriptionLimits(root = document){
+    const selectors = [
+      "#projectDescription",
+      "#seDescription",
+      "#serviceDescription",
+      'textarea[name="description"]',
+      'textarea[data-field="description"]'
+    ];
+
+    selectors.forEach(selector => {
+      root.querySelectorAll?.(selector).forEach(field => {
+        field.maxLength = MAX_DESCRIPTION_LENGTH;
+
+        if(field.value && field.value.length > MAX_DESCRIPTION_LENGTH){
+          field.value = field.value.slice(0, MAX_DESCRIPTION_LENGTH);
+        }
+
+        if(field.dataset.max500Bound === "1") return;
+        field.dataset.max500Bound = "1";
+
+        field.addEventListener("input", () => {
+          if(field.value.length > MAX_DESCRIPTION_LENGTH){
+            field.value = field.value.slice(0, MAX_DESCRIPTION_LENGTH);
+          }
+        });
+      });
+    });
+  }
+
+  applyDescriptionLimits();
+
+  const observer = new MutationObserver(() => applyDescriptionLimits());
+  observer.observe(document.documentElement, {
+    childList: true,
+    subtree: true
+  });
+})();
+</script>
+
+
+<!-- ALTARIQ_ADD_SERVICE_MODULE_START -->
+<style>
+  #altariqServiceModal{
+    position:fixed; inset:0; z-index:99999; display:none; place-items:center;
+    padding:20px; background:rgba(0,7,18,.82); backdrop-filter:blur(14px);
+  }
+  #altariqServiceModal.open{display:grid}
+  #altariqServiceModal .asm-card{
+    width:min(820px,100%); max-height:92vh; overflow:auto;
+    border-radius:28px; padding:24px;
+    background:linear-gradient(145deg,#0d203c,#061329);
+    border:1px solid rgba(255,255,255,.13);
+    box-shadow:0 34px 100px rgba(0,0,0,.55);
+    color:#fff;
+  }
+  #altariqServiceModal .asm-head{
+    display:flex;align-items:center;justify-content:space-between;gap:15px;margin-bottom:20px;
+  }
+  #altariqServiceModal .asm-head h2{margin:0;font-size:26px}
+  #altariqServiceModal .asm-close{
+    width:42px;height:42px;border-radius:14px;border:1px solid rgba(255,255,255,.13);
+    background:rgba(255,255,255,.06);color:#fff;font-size:20px;cursor:pointer
+  }
+  #altariqServiceModal .asm-grid{
+    display:grid;grid-template-columns:1fr 1fr;gap:14px;
+  }
+  #altariqServiceModal .asm-full{grid-column:1/-1}
+  #altariqServiceModal label{display:grid;gap:8px;font-size:12px;color:#dce6f7}
+  #altariqServiceModal input,
+  #altariqServiceModal textarea{
+    width:100%;box-sizing:border-box;border:1px solid rgba(255,255,255,.13);
+    background:rgba(255,255,255,.06);color:#fff;border-radius:14px;
+    padding:12px 13px;outline:0;font:inherit
+  }
+  #altariqServiceModal textarea{min-height:120px;resize:vertical}
+  #altariqServiceModal input:focus,
+  #altariqServiceModal textarea:focus{
+    border-color:rgba(255,196,0,.62);box-shadow:0 0 0 3px rgba(255,196,0,.09)
+  }
+  #altariqServiceModal .asm-upload{
+    border:1px dashed rgba(255,196,0,.35);border-radius:18px;padding:15px;
+    background:rgba(255,196,0,.035)
+  }
+  #altariqServiceModal .asm-preview{
+    width:100%;height:240px;object-fit:contain;margin-top:12px;border-radius:16px;
+    background:#071326;border:1px solid rgba(255,255,255,.10);display:none
+  }
+  #altariqServiceModal .asm-counter{font-size:11px;color:#9fb0ca;text-align:end}
+  #altariqServiceModal .asm-visible{
+    display:flex;align-items:center;gap:10px;margin-top:4px
+  }
+  #altariqServiceModal .asm-visible input{width:auto}
+  #altariqServiceModal .asm-actions{
+    display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:20px
+  }
+  #altariqServiceModal .asm-primary,
+  #altariqServiceModal .asm-secondary{
+    border:0;border-radius:14px;padding:12px 18px;font-weight:800;cursor:pointer
+  }
+  #altariqServiceModal .asm-primary{background:#ffc400;color:#071325}
+  #altariqServiceModal .asm-secondary{
+    background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.12)
+  }
+  #altariqServiceModal .asm-status{
+    margin-top:12px;font-size:12px;line-height:1.8;color:#cbd8eb;min-height:20px
+  }
+  @media(max-width:680px){
+    #altariqServiceModal .asm-grid{grid-template-columns:1fr}
+    #altariqServiceModal .asm-full{grid-column:auto}
+  }
+</style>
+
+<div id="altariqServiceModal" aria-hidden="true">
+  <form class="asm-card" id="altariqServiceForm">
+    <div class="asm-head">
+      <h2>إضافة خدمة جديدة</h2>
+      <button type="button" class="asm-close" id="altariqServiceClose" aria-label="إغلاق">×</button>
+    </div>
+
+    <div class="asm-grid">
+      <label>
+        اسم الخدمة
+        <input id="altariqServiceName" maxlength="100" required placeholder="مثال: إدارة مواقع التواصل">
+      </label>
+
+      <label>
+        العنوان الصغير
+        <input id="altariqServiceKicker" maxlength="100" placeholder="Digital Marketing">
+      </label>
+
+      <label>
+        الرقم
+        <input id="altariqServiceNumber" maxlength="3" inputmode="numeric" placeholder="05">
+      </label>
+
+      <label>
+        الأيقونة
+        <input id="altariqServiceIcon" maxlength="6" value="✦" placeholder="✦">
+      </label>
+
+      <label class="asm-full">
+        الوصف
+        <textarea id="altariqServiceDescription" maxlength="500" placeholder="اكتب وصف الخدمة — الحد الأقصى 500 حرف"></textarea>
+        <span class="asm-counter"><span id="altariqServiceDescriptionCount">0</span>/500</span>
+      </label>
+
+      <label class="asm-full asm-upload">
+        صورة الخدمة من جهازك
+        <input id="altariqServiceImage" type="file" accept="image/jpeg,image/png,image/webp,image/gif">
+        <small>JPG / PNG / WEBP / GIF — الحد الأقصى 10MB</small>
+        <img id="altariqServicePreview" class="asm-preview" alt="معاينة صورة الخدمة">
+      </label>
+
+      <label class="asm-full asm-visible">
+        <input id="altariqServiceVisible" type="checkbox" checked>
+        إظهار الخدمة في الموقع
+      </label>
+    </div>
+
+    <div class="asm-status" id="altariqServiceStatus"></div>
+
+    <div class="asm-actions">
+      <button type="button" class="asm-secondary" id="altariqServiceCancel">إلغاء</button>
+      <button type="submit" class="asm-primary" id="altariqServiceSubmit">إضافة ونشر</button>
+    </div>
+  </form>
+</div>
+
+<script type="module">
+  import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+  import { getFirestore, collection, doc, getDocs, setDoc } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey:"AIzaSyAyUMzv-Zw_XtNe4OKJPg2FrwyLSJh5i9A",
+    authDomain:"al-tariq-media.firebaseapp.com",
+    projectId:"al-tariq-media",
+    storageBucket:"al-tariq-media.firebasestorage.app",
+    messagingSenderId:"616239800441",
+    appId:"1:616239800441:web:53edc96e1cc872702cb4a8",
+    measurementId:"G-42KJKNDJDF"
+  };
+
+  const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  const CLOUD_NAME = "ql544zkl";
+  const UPLOAD_PRESET = "altariq_services_upload";
+  const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`;
+  const LOCAL_KEY = "altariq_media_services_v1";
+
+  const modal = document.getElementById("altariqServiceModal");
+  const form = document.getElementById("altariqServiceForm");
+  const fileInput = document.getElementById("altariqServiceImage");
+  const preview = document.getElementById("altariqServicePreview");
+  const description = document.getElementById("altariqServiceDescription");
+  const count = document.getElementById("altariqServiceDescriptionCount");
+  const status = document.getElementById("altariqServiceStatus");
+  const submit = document.getElementById("altariqServiceSubmit");
+
+  let previewObjectUrl = "";
+
+  function setStatus(message, isError=false){
+    status.textContent = message || "";
+    status.style.color = isError ? "#ff9f9f" : "#cbd8eb";
+  }
+
+  function closePreviewUrl(){
+    if(previewObjectUrl){
+      URL.revokeObjectURL(previewObjectUrl);
+      previewObjectUrl = "";
+    }
+  }
+
+  function resetForm(){
+    closePreviewUrl();
+    form.reset();
+    document.getElementById("altariqServiceIcon").value = "✦";
+    document.getElementById("altariqServiceVisible").checked = true;
+    preview.removeAttribute("src");
+    preview.style.display = "none";
+    count.textContent = "0";
+    setStatus("");
+  }
+
+  async function getNextNumber(){
+    let max = 0;
+
+    try{
+      const snap = await getDocs(collection(db,"services"));
+      snap.forEach(s=>{
+        const d=s.data() || {};
+        const n=Number(d.order || d.number || 0);
+        if(Number.isFinite(n)) max=Math.max(max,n);
+      });
+    }catch(e){
+      console.warn("Could not read services for next number:",e);
+    }
+
+    if(max === 0){
+      try{
+        const local = JSON.parse(localStorage.getItem(LOCAL_KEY) || "[]");
+        if(Array.isArray(local)){
+          local.forEach(s=>{
+            const n=Number(s.order || s.number || 0);
+            if(Number.isFinite(n)) max=Math.max(max,n);
+          });
+        }
+      }catch{}
+    }
+
+    const next = max + 1;
+    return String(next).padStart(2,"0");
+  }
+
+  async function openServiceModal(){
+    resetForm();
+    document.getElementById("altariqServiceNumber").value = await getNextNumber();
+    modal.classList.add("open");
+    modal.setAttribute("aria-hidden","false");
+    setTimeout(()=>document.getElementById("altariqServiceName")?.focus(),50);
+  }
+
+  function closeServiceModal(){
+    modal.classList.remove("open");
+    modal.setAttribute("aria-hidden","true");
+    closePreviewUrl();
+  }
+
+  // This is the bridge fired by the header "Add Service" button.
+  window.addEventListener("altariq:add-service-requested", openServiceModal);
+
+  // Also bind directly, so the button works even if the old bridge code changes later.
+  document.getElementById("quickAddService")?.addEventListener("click",()=>{
+    const servicesPage = document.getElementById("services");
+    if(servicesPage?.classList.contains("active")){
+      openServiceModal();
+    }
+  });
+
+  document.getElementById("altariqServiceClose").addEventListener("click",closeServiceModal);
+  document.getElementById("altariqServiceCancel").addEventListener("click",closeServiceModal);
+  modal.addEventListener("click",e=>{ if(e.target===modal) closeServiceModal(); });
+  document.addEventListener("keydown",e=>{
+    if(e.key==="Escape" && modal.classList.contains("open")) closeServiceModal();
+  });
+
+  description.addEventListener("input",()=>{
+    if(description.value.length > 500){
+      description.value = description.value.slice(0,500);
+    }
+    count.textContent = String(description.value.length);
+  });
+
+  fileInput.addEventListener("change",()=>{
+    const file = fileInput.files?.[0];
+    closePreviewUrl();
+
+    if(!file){
+      preview.style.display="none";
+      return;
+    }
+
+    if(!file.type.startsWith("image/")){
+      alert("اختر ملف صورة فقط.");
+      fileInput.value="";
+      preview.style.display="none";
+      return;
+    }
+
+    if(file.size > 10 * 1024 * 1024){
+      alert("حجم الصورة أكبر من 10MB.");
+      fileInput.value="";
+      preview.style.display="none";
+      return;
+    }
+
+    previewObjectUrl = URL.createObjectURL(file);
+    preview.src = previewObjectUrl;
+    preview.style.display = "block";
+  });
+
+  async function uploadImage(file){
+    if(!file) return "";
+
+    if(file.size > 10 * 1024 * 1024){
+      throw new Error("حجم الصورة أكبر من 10MB.");
+    }
+
+    const body = new FormData();
+    body.append("file",file);
+    body.append("upload_preset",UPLOAD_PRESET);
+
+    const response = await fetch(CLOUDINARY_URL,{
+      method:"POST",
+      body
+    });
+
+    const result = await response.json().catch(()=>({}));
+
+    if(!response.ok){
+      throw new Error(result?.error?.message || "فشل رفع الصورة إلى Cloudinary.");
+    }
+
+    if(!result.secure_url){
+      throw new Error("Cloudinary لم يرجع رابط الصورة.");
+    }
+
+    return result.secure_url;
+  }
+
+  function updateLocalService(service){
+    try{
+      let list = JSON.parse(localStorage.getItem(LOCAL_KEY) || "[]");
+      if(!Array.isArray(list)) list=[];
+
+      const i = list.findIndex(x=>String(x.id)===String(service.id));
+      if(i>=0) list[i]=service;
+      else list.push(service);
+
+      list.sort((a,b)=>(Number(a.order)||99)-(Number(b.order)||99));
+      localStorage.setItem(LOCAL_KEY,JSON.stringify(list));
+      window.dispatchEvent(new CustomEvent("altariq:services-updated",{detail:list}));
+    }catch(e){
+      console.warn("Could not save service locally:",e);
+    }
+  }
+
+  form.addEventListener("submit",async e=>{
+    e.preventDefault();
+
+    const name = document.getElementById("altariqServiceName").value.trim();
+    const kicker = document.getElementById("altariqServiceKicker").value.trim();
+    const number = document.getElementById("altariqServiceNumber").value.trim() || await getNextNumber();
+    const icon = document.getElementById("altariqServiceIcon").value.trim() || "✦";
+    const desc = description.value.trim().slice(0,500);
+    const visible = document.getElementById("altariqServiceVisible").checked;
+    const file = fileInput.files?.[0] || null;
+
+    if(!name){
+      setStatus("اكتب اسم الخدمة.",true);
+      return;
+    }
+
+    if(!file){
+      setStatus("اختر صورة للخدمة من جهازك.",true);
+      return;
+    }
+
+    submit.disabled=true;
+    submit.textContent="جاري الرفع والحفظ...";
+    setStatus("جاري رفع صورة الخدمة إلى Cloudinary...");
+
+    try{
+      const image = await uploadImage(file);
+      setStatus("تم رفع الصورة. جاري حفظ الخدمة في Firebase...");
+
+      const numericOrder = Number(number) || 99;
+      const id = `service-${String(number).padStart(2,"0")}-${Date.now()}`;
+      const now = new Date().toISOString();
+
+      const service = {
+        id,
+        number:String(number).padStart(2,"0"),
+        order:numericOrder,
+        icon,
+        kicker,
+        name,
+        title:name,
+        description:desc,
+        image,
+        imageUrl:image,
+        publicImage:image,
+        visible,
+        published:visible,
+        status:visible ? "Published" : "Draft",
+        updated:now,
+        createdAt:now
+      };
+
+      // Primary collection used by your current Firebase services setup.
+      await setDoc(doc(db,"services",id),service,{merge:false});
+
+      // Compatibility with the older public sync code that used website_services.
+      try{
+        await setDoc(doc(db,"website_services",id),service,{merge:false});
+      }catch(compatError){
+        console.warn("website_services compatibility save skipped:",compatError);
+      }
+
+      updateLocalService(service);
+
+      // Let existing admin-service-sync.js refresh if it listens to these events.
+      window.dispatchEvent(new CustomEvent("altariq:service-added",{detail:service}));
+      window.dispatchEvent(new CustomEvent("altariq:services-updated"));
+
+      setStatus("✅ تم إضافة الخدمة ورفع الصورة ونشرها بنجاح.");
+      closeServiceModal();
+
+      // Keep the user on the Services page and refresh data through the existing manager.
+      setTimeout(()=>{
+        try{
+          document.querySelector('.nav-btn[data-page="services"]')?.click();
+        }catch{}
+      },250);
+
+    }catch(error){
+      console.error("Add service failed:",error);
+      setStatus("❌ " + (error?.message || "تعذر إضافة الخدمة."),true);
+    }finally{
+      submit.disabled=false;
+      submit.textContent="إضافة ونشر";
+    }
+  });
+
+  console.info("✅ Add Service modal ready — device upload + Cloudinary + Firestore.");
+</script>
+<!-- ALTARIQ_ADD_SERVICE_MODULE_END -->
+
 </body>
 </html>
