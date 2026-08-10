@@ -560,26 +560,210 @@
     }
 
   
+    
     /* ===== Website Analytics ===== */
-    .analytics-grid-custom{align-items:stretch}
-    .wa-bars{display:grid;gap:16px;margin-top:12px}
-    .wa-bar-row{display:grid;gap:7px}
-    .wa-bar-label{display:flex;justify-content:space-between;gap:12px;font-size:13px;color:var(--ink)}
-    .wa-bar-track{height:10px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden}
-    .wa-bar-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--brand-blue-2),var(--brand-yellow));min-width:2px}
-    .wa-insight{margin-top:18px;padding:14px 16px;border-radius:15px;background:rgba(255,196,0,.07);border:1px solid rgba(255,196,0,.18);line-height:1.8}
-    .wa-list{display:grid;gap:10px;margin-top:8px}
-    .wa-list-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 12px;border-radius:14px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07)}
+    .analytics-pro-shell{display:grid;gap:22px}
+    .analytics-hero{
+      position:relative;
+      overflow:hidden;
+      display:flex;
+      justify-content:space-between;
+      gap:24px;
+      align-items:center;
+      padding:26px 28px;
+      border-radius:26px;
+      background:
+        radial-gradient(circle at 15% 20%,rgba(255,196,0,.08),transparent 24%),
+        linear-gradient(135deg,rgba(20,48,85,.92),rgba(7,27,52,.95));
+    }
+    .analytics-hero:after{
+      content:"";
+      position:absolute;
+      width:180px;
+      height:180px;
+      border-radius:50%;
+      left:-70px;
+      bottom:-90px;
+      background:rgba(255,196,0,.05);
+      border:1px solid rgba(255,196,0,.08);
+    }
+    .analytics-hero-copy{position:relative;z-index:2;max-width:720px}
+    .analytics-hero-copy .eyebrow{display:block;font-size:11px;letter-spacing:1.8px;color:var(--brand-yellow);font-weight:900;margin-bottom:8px}
+    .analytics-hero-copy h2{font-size:34px;margin:0 0 8px;font-weight:1000;color:var(--ink)}
+    .analytics-hero-copy p{margin:0;color:var(--muted);font-size:14px;line-height:1.9}
+    .analytics-hero-controls{position:relative;z-index:2;display:flex;gap:10px;align-items:end;flex-wrap:wrap}
+    .analytics-filter{display:grid;gap:7px}
+    .analytics-filter span{font-size:11px;color:var(--muted);font-weight:800}
+    .analytics-filter select{
+      min-width:160px;
+      height:44px;
+      border-radius:13px;
+      border:1px solid rgba(255,255,255,.1);
+      background:#10213a;
+      color:var(--ink);
+      padding:0 14px;
+      outline:none;
+    }
+    .analytics-refresh-btn{
+      height:44px;
+      border:1px solid rgba(255,196,0,.2);
+      background:rgba(255,196,0,.08);
+      color:var(--brand-yellow);
+      border-radius:13px;
+      padding:0 16px;
+      font-weight:900;
+      cursor:pointer;
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .analytics-kpi-grid{
+      display:grid;
+      grid-template-columns:repeat(6,minmax(0,1fr));
+      gap:14px;
+    }
+    .analytics-kpi{
+      padding:18px;
+      border-radius:20px;
+      min-height:132px;
+      display:grid;
+      align-content:space-between;
+      gap:10px;
+      background:linear-gradient(180deg,rgba(20,44,76,.84),rgba(11,31,57,.82));
+    }
+    .analytics-kpi-top{display:flex;align-items:center;gap:9px}
+    .analytics-kpi-icon{
+      width:30px;
+      height:30px;
+      border-radius:10px;
+      display:grid;
+      place-items:center;
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.08);
+      color:var(--brand-yellow);
+      font-size:13px;
+    }
+    .analytics-kpi-label{font-size:12px;color:var(--muted);font-weight:800}
+    .analytics-kpi b{font-size:34px;line-height:1;color:var(--ink);font-weight:1000;letter-spacing:-1px}
+    .analytics-kpi small{font-size:10.5px;color:var(--muted)}
+    .analytics-kpi-accent{border:1px solid rgba(255,196,0,.16)}
+    .analytics-main-grid{
+      display:grid;
+      grid-template-columns:1.4fr 1fr;
+      gap:18px;
+    }
+    .analytics-card{
+      border-radius:24px;
+      padding:22px;
+      min-width:0;
+      background:linear-gradient(180deg,rgba(18,41,70,.9),rgba(10,28,52,.88));
+    }
+    .analytics-card-wide{grid-row:span 2}
+    .analytics-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px}
+    .analytics-card-kicker{display:block;color:var(--brand-yellow);font-size:10px;font-weight:900;letter-spacing:1.5px;margin-bottom:5px}
+    .analytics-card-head h3{margin:0 0 4px;font-size:20px;color:var(--ink)}
+    .analytics-card-head p{margin:0;color:var(--muted);font-size:12px;line-height:1.7}
+    .analytics-status-dot{
+      font-size:9px;
+      letter-spacing:1px;
+      color:#24d1a0;
+      border:1px solid rgba(36,209,160,.18);
+      background:rgba(36,209,160,.08);
+      border-radius:999px;
+      padding:6px 9px;
+      font-weight:900;
+    }
+    .analytics-interest-bars{display:grid;gap:16px}
+    .wa-bar-row{display:grid;gap:8px}
+    .wa-bar-label{display:flex;justify-content:space-between;gap:12px;font-size:12px;color:var(--ink)}
+    .wa-bar-label b{font-size:11px;color:var(--muted)}
+    .wa-bar-track{height:9px;border-radius:999px;background:rgba(255,255,255,.06);overflow:hidden}
+    .wa-bar-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#1a77d2,var(--brand-yellow));min-width:2px}
+    .analytics-insight{
+      margin-top:18px;
+      padding:14px 15px;
+      border-radius:14px;
+      background:rgba(255,196,0,.055);
+      border:1px solid rgba(255,196,0,.12);
+      color:var(--ink);
+      font-size:12px;
+      line-height:1.8;
+    }
+    .analytics-list{display:grid;gap:9px}
+    .wa-list-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:12px 13px;
+      border-radius:14px;
+      background:rgba(255,255,255,.028);
+      border:1px solid rgba(255,255,255,.06);
+    }
     .wa-list-row .wa-main{display:grid;gap:3px;min-width:0}
-    .wa-list-row b{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .wa-list-row small{color:var(--muted);font-size:11px}
-    .wa-count{min-width:42px;text-align:center;border-radius:999px;padding:6px 9px;background:rgba(255,196,0,.12);color:var(--brand-yellow);font-weight:900}
-    .wa-empty{padding:22px;text-align:center;color:var(--muted);border:1px dashed rgba(255,255,255,.1);border-radius:16px}
-    .wa-daily-chart{display:flex;align-items:end;gap:8px;height:220px;padding:18px 4px 0;overflow-x:auto}
-    .wa-day{min-width:34px;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:6px}
-    .wa-day-bar{width:22px;min-height:3px;border-radius:8px 8px 3px 3px;background:linear-gradient(180deg,var(--brand-yellow),var(--brand-blue-2));box-shadow:0 8px 18px rgba(255,196,0,.12)}
-    .wa-day small{font-size:9px;color:var(--muted);white-space:nowrap}
+    .wa-list-row b{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink)}
+    .wa-list-row small{font-size:10px;color:var(--muted);line-height:1.55}
+    .wa-count{
+      min-width:36px;
+      text-align:center;
+      padding:6px 8px;
+      border-radius:10px;
+      background:rgba(255,196,0,.08);
+      color:var(--brand-yellow);
+      font-weight:1000;
+      font-size:12px;
+    }
+    .wa-empty{
+      padding:22px;
+      text-align:center;
+      color:var(--muted);
+      border:1px dashed rgba(255,255,255,.08);
+      border-radius:14px;
+      font-size:12px;
+    }
+    .analytics-chart-card{padding-bottom:18px}
+    .analytics-daily-chart{
+      display:flex;
+      align-items:end;
+      gap:8px;
+      height:220px;
+      padding:14px 2px 0;
+      overflow-x:auto;
+      overflow-y:hidden;
+    }
+    .wa-day{
+      min-width:34px;
+      height:100%;
+      display:flex;
+      flex-direction:column;
+      justify-content:flex-end;
+      align-items:center;
+      gap:6px;
+    }
+    .wa-day-bar{
+      width:20px;
+      min-height:3px;
+      border-radius:7px 7px 3px 3px;
+      background:linear-gradient(180deg,var(--brand-yellow),#1b72ce);
+      box-shadow:0 7px 16px rgba(255,196,0,.08);
+    }
+    .wa-day small{font-size:8.5px;color:var(--muted);white-space:nowrap}
     .wa-day b{font-size:9px;color:var(--ink)}
+    @media (max-width:1280px){
+      .analytics-kpi-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+    }
+    @media (max-width:900px){
+      .analytics-hero{align-items:flex-start;flex-direction:column}
+      .analytics-main-grid{grid-template-columns:1fr}
+      .analytics-card-wide{grid-row:auto}
+      .analytics-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+    }
+    @media (max-width:560px){
+      .analytics-kpi-grid{grid-template-columns:1fr}
+      .analytics-hero{padding:20px}
+      .analytics-card{padding:18px}
+      .analytics-hero-copy h2{font-size:28px}
+    }
 
 </style>
 </head>
@@ -740,69 +924,155 @@
       </section>
 
 
+      
       <section class="page" id="analytics">
-        <div class="page-head">
-          <div>
-            <h2>نشاط <span style="color:var(--brand-yellow)">الويب سايت</span></h2>
-            <p>إحصائيات حقيقية لنشاط الزوار والتفاعل مع الأعمال والخدمات وروابط التواصل.</p>
+        <div class="analytics-pro-shell">
+
+          <div class="analytics-hero glass">
+            <div class="analytics-hero-copy">
+              <span class="eyebrow">WEBSITE INTELLIGENCE</span>
+              <h2>نشاط الويب سايت</h2>
+              <p>لوحة تحليل متكاملة لمتابعة حركة الزوار، التفاعل مع المشاريع والخدمات، وروابط التواصل من مكان واحد.</p>
+            </div>
+
+            <div class="analytics-hero-controls">
+              <label class="analytics-filter">
+                <span>الفترة</span>
+                <select id="analyticsPeriod">
+                  <option value="7">آخر 7 أيام</option>
+                  <option value="30" selected>آخر 30 يوم</option>
+                  <option value="90">آخر 90 يوم</option>
+                  <option value="all">كل الوقت</option>
+                </select>
+              </label>
+
+              <button class="analytics-refresh-btn" type="button" id="analyticsRefresh">
+                <span>↻</span>
+                تحديث البيانات
+              </button>
+            </div>
           </div>
-          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-            <select class="input" id="analyticsPeriod" style="min-width:150px">
-              <option value="7">آخر 7 أيام</option>
-              <option value="30" selected>آخر 30 يوم</option>
-              <option value="90">آخر 90 يوم</option>
-              <option value="all">كل الوقت</option>
-            </select>
-            <button class="secondary-btn" type="button" id="analyticsRefresh">↻ تحديث</button>
+
+          <div class="analytics-kpi-grid">
+            <article class="analytics-kpi glass">
+              <div class="analytics-kpi-top">
+                <span class="analytics-kpi-icon">◉</span>
+                <span class="analytics-kpi-label">الزوار الفريدون</span>
+              </div>
+              <b id="waUniqueVisitors">0</b>
+              <small>أجهزة ومتصفحات فريدة</small>
+            </article>
+
+            <article class="analytics-kpi glass">
+              <div class="analytics-kpi-top">
+                <span class="analytics-kpi-icon">⌂</span>
+                <span class="analytics-kpi-label">مشاهدات الصفحات</span>
+              </div>
+              <b id="waPageViews">0</b>
+              <small>إجمالي فتح الصفحات</small>
+            </article>
+
+            <article class="analytics-kpi glass">
+              <div class="analytics-kpi-top">
+                <span class="analytics-kpi-icon">✦</span>
+                <span class="analytics-kpi-label">عرض الأعمال</span>
+              </div>
+              <b id="waPortfolioViews">0</b>
+              <small>زيارات صفحة Portfolio</small>
+            </article>
+
+            <article class="analytics-kpi glass">
+              <div class="analytics-kpi-top">
+                <span class="analytics-kpi-icon">↗</span>
+                <span class="analytics-kpi-label">فتح المشاريع</span>
+              </div>
+              <b id="waProjectOpens">0</b>
+              <small>مرات فتح بطاقات المشاريع</small>
+            </article>
+
+            <article class="analytics-kpi glass">
+              <div class="analytics-kpi-top">
+                <span class="analytics-kpi-icon">◎</span>
+                <span class="analytics-kpi-label">روابط Drive</span>
+              </div>
+              <b id="waDriveClicks">0</b>
+              <small>ضغطات ملفات ومجلدات Drive</small>
+            </article>
+
+            <article class="analytics-kpi analytics-kpi-accent glass">
+              <div class="analytics-kpi-top">
+                <span class="analytics-kpi-icon">✆</span>
+                <span class="analytics-kpi-label">التواصل</span>
+              </div>
+              <b id="waContactClicks">0</b>
+              <small>واتساب / هاتف / بريد</small>
+            </article>
           </div>
-        </div>
 
-        <div class="stats" id="websiteAnalyticsStats">
-          <article class="stat glass"><span>الزوار الفريدون</span><b id="waUniqueVisitors">0</b><small>أجهزة زارت الموقع</small></article>
-          <article class="stat glass"><span>مشاهدات الصفحات</span><b id="waPageViews">0</b><small>إجمالي فتح الصفحات</small></article>
-          <article class="stat glass"><span>ضغطات التواصل</span><b id="waContactClicks">0</b><small>واتساب / هاتف / بريد</small></article>
-          <article class="stat glass"><span>زيارات عرض الأعمال</span><b id="waPortfolioViews">0</b><small>اهتمام بالـ Portfolio</small></article>
-          <article class="stat glass"><span>ضغطات روابط Drive</span><b id="waDriveClicks">0</b><small>فتح ملفات ومشاريع Drive</small></article>
-          <article class="stat glass"><span>فتح المشاريع</span><b id="waProjectOpens">0</b><small>مشاريع تم فتحها</small></article>
-        </div>
+          <div class="analytics-main-grid">
+            <article class="analytics-card analytics-card-wide glass">
+              <div class="analytics-card-head">
+                <div>
+                  <span class="analytics-card-kicker">VISITOR INTEREST</span>
+                  <h3>اهتمام الزوار</h3>
+                  <p>تحليل نسبي للتفاعلات لمعرفة أكثر ما يجذب الزوار.</p>
+                </div>
+                <div class="analytics-status-dot">LIVE</div>
+              </div>
 
-        <div class="dashboard-grid analytics-grid-custom">
-          <article class="panel glass">
-            <div class="panel-head">
-              <div><h3>اهتمام الزوار</h3><span>ما الذي يجذب الزوار أكثر؟</span></div>
-            </div>
-            <div id="waInterestBars" class="wa-bars"></div>
-            <div class="wa-insight" id="waTopInsight">لا توجد بيانات كافية بعد.</div>
-          </article>
+              <div id="waInterestBars" class="analytics-interest-bars"></div>
+              <div id="waTopInsight" class="analytics-insight">
+                لا توجد بيانات كافية بعد.
+              </div>
+            </article>
 
-          <article class="panel glass">
-            <div class="panel-head">
-              <div><h3>أكثر المشاريع جذبًا</h3><span>حسب الفتح وروابط Drive</span></div>
-            </div>
-            <div id="waTopProjects" class="wa-list"></div>
-          </article>
+            <article class="analytics-card glass">
+              <div class="analytics-card-head">
+                <div>
+                  <span class="analytics-card-kicker">TOP PROJECTS</span>
+                  <h3>أكثر المشاريع جذبًا</h3>
+                  <p>الأكثر فتحًا أو انتقالًا إلى Drive.</p>
+                </div>
+              </div>
+              <div id="waTopProjects" class="analytics-list"></div>
+            </article>
 
-          <article class="panel glass">
-            <div class="panel-head">
-              <div><h3>أكثر الخدمات اهتمامًا</h3><span>حسب ضغطات بطاقات الخدمات</span></div>
-            </div>
-            <div id="waTopServices" class="wa-list"></div>
-          </article>
+            <article class="analytics-card glass">
+              <div class="analytics-card-head">
+                <div>
+                  <span class="analytics-card-kicker">TOP SERVICES</span>
+                  <h3>أكثر الخدمات اهتمامًا</h3>
+                  <p>الخدمات التي حصلت على أكبر تفاعل.</p>
+                </div>
+              </div>
+              <div id="waTopServices" class="analytics-list"></div>
+            </article>
 
-          <article class="panel glass">
-            <div class="panel-head">
-              <div><h3>آخر نشاطات الموقع</h3><span>آخر الأحداث المسجلة</span></div>
-            </div>
-            <div id="waRecentEvents" class="wa-list"></div>
-          </article>
-        </div>
-
-        <article class="panel glass" style="margin-top:18px">
-          <div class="panel-head">
-            <div><h3>توزيع النشاط اليومي</h3><span>عدد الأحداث المسجلة يوميًا</span></div>
+            <article class="analytics-card glass">
+              <div class="analytics-card-head">
+                <div>
+                  <span class="analytics-card-kicker">RECENT ACTIVITY</span>
+                  <h3>آخر نشاطات الموقع</h3>
+                  <p>أحدث التفاعلات المسجلة من الزوار.</p>
+                </div>
+              </div>
+              <div id="waRecentEvents" class="analytics-list analytics-recent-list"></div>
+            </article>
           </div>
-          <div id="waDailyChart" class="wa-daily-chart"></div>
-        </article>
+
+          <article class="analytics-card analytics-chart-card glass">
+            <div class="analytics-card-head">
+              <div>
+                <span class="analytics-card-kicker">DAILY TRAFFIC</span>
+                <h3>توزيع النشاط اليومي</h3>
+                <p>عدد الأحداث المسجلة يومًا بيوم خلال الفترة المحددة.</p>
+              </div>
+            </div>
+
+            <div id="waDailyChart" class="analytics-daily-chart"></div>
+          </article>
+
+        </div>
       </section>
 
       <section class="page" id="works">
